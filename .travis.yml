@@ -5,3 +5,6 @@ script: go test -v ./... -check.vv
 branches:
   only:
     - master
+addons:
+  apt_packages:
+    - time
