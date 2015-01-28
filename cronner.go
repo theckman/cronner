@@ -53,7 +53,7 @@ func (a *args) parse() error {
 		return fmt.Errorf("cron label '%v' is invalid, it can only be alphanumeric with underscores and periods", a.Label)
 	}
 
-	if len(a.Cmd) == 0 {
+	if a.Cmd == "" {
 		return fmt.Errorf("you must specify a command to run")
 	}
 
