@@ -23,7 +23,7 @@ const MaxBody = 1536
 
 // args is for argument parsing
 type args struct {
-	Label  string `short:"l" long:"label" default:"" description:"name for cron job, cronner will lowercase it"`
+	Label  string `short:"l" long:"label" default:"" description:"name for cron job; cronner will lowercase it"`
 	Cmd    string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args"`
 	Events bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
 }
