@@ -10,6 +10,7 @@ import (
 	"net"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -111,9 +112,10 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	err = nil
 	cmd = nil
 	time = 0
-	timeRegex = nil
 	match = nil
 	timely = false
+	retCode = 0
+	timeRegex = nil
 
 	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
@@ -153,6 +155,43 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Assert(retFloat, Equals, float64(0))
+
+	//
+	// Test a valid return code is given
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	cmd = nil
+	time = 0
+	match = nil
+	retCode = 0
+
+	switch runtime.GOOS {
+	case "linux":
+		cmd = exec.Command("/bin/false")
+	case "darwin":
+		cmd = exec.Command("/usr/bin/false")
+	}
+
+	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs)
+	c.Assert(err, Not(IsNil))
+	c.Assert(retCode, Equals, 1)
+
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+
+	retFloat, err = strconv.ParseFloat(match[0][1], 64)
+	c.Assert(err, IsNil)
+	c.Assert(retFloat, Equals, float64(1))
 }
 
 func (t *TestSuite) Test_emitEvent(c *C) {
