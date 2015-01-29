@@ -58,20 +58,33 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	//
 	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
-	r, time, err := runCommand(cmd, "testCmd", t.gs)
+	retCode, r, time, err := runCommand(cmd, "testCmd", t.gs)
 	c.Assert(err, IsNil)
+	c.Assert(retCode, Equals, 0)
 
 	stat, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	statRegex := regexp.MustCompile("^cron.testCmd.time:([0-9\\.]+)\\|ms$")
-	match := statRegex.FindAllStringSubmatch(string(stat), -1)
+	timeStatRegex := regexp.MustCompile("^cron.testCmd.time:([0-9\\.]+)\\|ms$")
+	match := timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
 
 	statFloat, err := strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Assert(statFloat, Equals, time)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	retStatRegex := regexp.MustCompile("^cron.testCmd.exit_code:([0-9\\.]+)\\|g$")
+	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+
+	retFloat, err := strconv.ParseFloat(match[0][1], 64)
+	c.Assert(err, IsNil)
+	c.Assert(retFloat, Equals, float64(0))
 
 	var timely bool
 
@@ -104,13 +117,14 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	r, time, err = runCommand(cmd, "testCmd", t.gs)
+	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs)
 	c.Assert(err, IsNil)
+	c.Assert(retCode, Equals, 0)
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
 
-	match = statRegex.FindAllStringSubmatch(string(stat), -1)
+	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
 
@@ -125,10 +139,20 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	timeRegex = regexp.MustCompile("((?m)^real[[:space:]]+([0-9\\.]+)$)")
 	match = timeRegex.FindAllStringSubmatch(string(r), -1)
-
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 3)
 	c.Assert(match[0][2], Equals, "1.00")
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+
+	retFloat, err = strconv.ParseFloat(match[0][1], 64)
+	c.Assert(err, IsNil)
+	c.Assert(retFloat, Equals, float64(0))
 }
 
 func (t *TestSuite) Test_emitEvent(c *C) {

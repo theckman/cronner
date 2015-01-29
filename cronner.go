@@ -63,7 +63,7 @@ func (a *args) parse() error {
 	return nil
 }
 
-func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) ([]byte, float64, error) {
+func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) (int, []byte, float64, error) {
 	var b bytes.Buffer
 
 	// comnbine stdout and stderr to the same buffer
@@ -84,10 +84,24 @@ func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) ([]byte, flo
 	// being off by a few milliseconds.
 	t := time.Since(s).Seconds() * 1000
 
-	// emit the metric for how long it took us
-	gs.Timing(fmt.Sprintf("cron.%v.time", label), t, nil)
+	var ret int
 
-	return b.Bytes(), t, err
+	// if the command failed we want the exit status code
+	// and to change the state variables to their failure values
+	if err != nil {
+		if ee, ok := err.(*exec.ExitError); ok {
+			status := ee.Sys().(syscall.WaitStatus)
+			ret = status.ExitStatus()
+		} else {
+			ret = -1
+		}
+	}
+
+	// emit the metric for how long it took us and return code
+	gs.Timing(fmt.Sprintf("cron.%v.time", label), t, nil)
+	gs.Gauge(fmt.Sprintf("cron.%v.exit_code", label), float64(ret), nil)
+
+	return ret, b.Bytes(), t, err
 }
 
 // emit a godspeed (dogstatsd) event
@@ -172,31 +186,22 @@ func main() {
 	}
 
 	// run the command and return the output as well as the return status
-	out, wallRtMs, err := runCommand(cmd, opts.Label, gs)
+	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, gs)
 
 	// default variables are for success
 	// we change them later if there was a failure
-	var ret int
 	msg := "succeeded"
 	alertType := "success"
 
-	// if the command failed we want the exit status code
-	// and to change the state variables to their failure values
+	// if the command failed change the state variables to their failure values
 	if err != nil {
 		msg = "failed"
 		alertType = "error"
-
-		if ee, ok := err.(*exec.ExitError); ok {
-			status := ee.Sys().(syscall.WaitStatus)
-			ret = status.ExitStatus()
-		} else {
-			ret = -1
-		}
 	}
 
 	// build the pieces of the completion event
 	title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
-	body := fmt.Sprintf("exit code: %d\noutput:\n%v", ret, string(out))
+	body := fmt.Sprintf("exit code: %d\nmore:%v\noutput:\n%v", ret, err.Error(), string(out))
 
 	if opts.Events {
 		emitEvent(title, body, alertType, uuidStr, gs)
