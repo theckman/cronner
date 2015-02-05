@@ -1,0 +1,10 @@
+language: go
+go:
+  - 1.4
+script: go test -v ./... -check.vv
+branches:
+  only:
+    - master
+addons:
+  apt_packages:
+    - time
