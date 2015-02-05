@@ -157,6 +157,8 @@ func main() {
 		os.Exit(-1)
 	}
 
+	gs.SetNamespace("pagerduty")
+
 	// get the hostname and validate nothing happened
 	hostname, err := os.Hostname()
 

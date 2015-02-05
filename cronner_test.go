@@ -34,6 +34,7 @@ func (t *TestSuite) SetUpSuite(c *C) {
 	var err error
 	t.gs, err = godspeed.NewDefault()
 	c.Assert(err, IsNil)
+	t.gs.SetNamespace("pagerduty")
 }
 
 func (t *TestSuite) TearDownSuite(c *C) {
@@ -66,7 +67,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	stat, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	timeStatRegex := regexp.MustCompile("^cron.testCmd.time:([0-9\\.]+)\\|ms$")
+	timeStatRegex := regexp.MustCompile("^pagerduty.cron.testCmd.time:([0-9\\.]+)\\|ms$")
 	match := timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
@@ -78,7 +79,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
 
-	retStatRegex := regexp.MustCompile("^cron.testCmd.exit_code:([0-9\\.]+)\\|g$")
+	retStatRegex := regexp.MustCompile("^pagerduty.cron.testCmd.exit_code:([0-9\\.]+)\\|g$")
 	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
@@ -225,7 +226,7 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	c.Assert(ok, Equals, true)
 
 	// simulate truncation and addition of the truncation messsage
-	truncatedBody := fmt.Sprintf("%v...\\\\n=== OUTPUT TRUNCATED ===\\\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
+	truncatedBody := fmt.Sprintf("%v...\\n=== OUTPUT TRUNCATED ===\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
 
 	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v", len(title), len(truncatedBody), title, truncatedBody, uuidStr, alertType)
 	eventStr = string(event)
