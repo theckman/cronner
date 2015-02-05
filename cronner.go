@@ -199,16 +199,25 @@ func main() {
 		alertType = "error"
 	}
 
-	// build the pieces of the completion event
-	title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
-
-	body := fmt.Sprintf("exit code: %d\n", ret)
-	if err != nil {
-		body = fmt.Sprintf("%vmore:%v\n", body, err.Error())
-	}
-	body = fmt.Sprintf("%voutput:%v", body, string(out))
-
 	if opts.Events {
+		// build the pieces of the completion event
+		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
+
+		body := fmt.Sprintf("exit code: %d\n", ret)
+		if err != nil {
+			body = fmt.Sprintf("%vmore:%v\n", body, err.Error())
+		}
+
+		var cmdOutput string
+
+		if len(out) > 0 {
+			cmdOutput = string(out)
+		} else {
+			cmdOutput = "(none)"
+		}
+
+		body = fmt.Sprintf("%voutput:%v", body, cmdOutput)
+
 		emitEvent(title, body, alertType, uuidStr, gs)
 	}
 }
