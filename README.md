@@ -37,7 +37,7 @@ It emits a timing metric for how long it took for the command to run, as well as
 Running a command and emitting a start and end event:
 
 ```
-./cronner -e -l sleepytime2 -c 'sleep 5'
+$ cronner -e -l sleepytime2 -c 'sleep 5'
 ```
 
 And the statsd interceptions look like this:
@@ -46,5 +46,5 @@ And the statsd interceptions look like this:
 _e{35,12}:Cron sleepytime2 starting on rinzler|job starting|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:info
 cron.sleepytime2.time:5005.649979|ms
 cron.sleepytime2.exit_code:0|g
-_e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:success
+_e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:success
 ```
