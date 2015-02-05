@@ -201,7 +201,12 @@ func main() {
 
 	// build the pieces of the completion event
 	title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
-	body := fmt.Sprintf("exit code: %d\nmore:%v\noutput:\n%v", ret, err.Error(), string(out))
+
+	body := fmt.Sprintf("exit code: %d\n", ret)
+	if err != nil {
+		body = fmt.Sprintf("%vmore:%v\n", body, err.Error())
+	}
+	body = fmt.Sprintf("%voutput:%v", body, string(out))
 
 	if opts.Events {
 		emitEvent(title, body, alertType, uuidStr, gs)
