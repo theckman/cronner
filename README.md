@@ -28,8 +28,8 @@ $ cronner -c 'sleep 10' -l sleepytime
 Listening to the statsd emissions looks like this:
 
 ```
-cron.sleepytime.time:10005.834649|ms
-cron.sleepytime.exit_code:0|g
+pagerduty.cron.sleepytime.time:10005.834649|ms
+pagerduty.cron.sleepytime.exit_code:0|g
 ```
 
 It emits a timing metric for how long it took for the command to run, as well as the command's exit code.
@@ -44,7 +44,7 @@ And the statsd interceptions look like this:
 
 ```
 _e{35,12}:Cron sleepytime2 starting on rinzler|job starting|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:info
-cron.sleepytime2.time:5005.649979|ms
-cron.sleepytime2.exit_code:0|g
+pagerduty.cron.sleepytime2.time:5005.649979|ms
+pagerduty.cron.sleepytime2.exit_code:0|g
 _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:success
 ```
