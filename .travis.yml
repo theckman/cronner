@@ -1,10 +1,29 @@
+env: PD_PROJECT=cronner GOARCH=amd64 GOOS=linux PD_BUILD_NAME="$PD_PROJECT-$GOOS-$GOARCH-${TRAVIS_COMMIT:0:8}-tbn$TRAVIS_BUILD_NUMBER"
 language: go
 go:
-  - 1.4
+- 1.4
 script: go test -v ./... -check.vv
 branches:
   only:
-    - master
+  - master
 addons:
   apt_packages:
-    - time
+  - time
+before_deploy:
+- mkdir build
+- mkdir $PD_BUILD_NAME
+- go build -o $PD_BUILD_NAME/$PD_PROJECT
+- tar -czf build/$PD_BUILD_NAME.tar.gz $PD_BUILD_NAME/
+deploy:
+  provider: s3
+  access_key_id: AKIAJPWFU5LC5NGW6HAA
+  secret_access_key:
+    secure: SvRtURxbZ5RJ5ia4LPkEUN5Tsto263RjDM8X49sbXSB3R6DGZ3R7o23KIeTsSKh2V7R9NHXOazCtPgdARWBjzhdflo0txjkgYaaHI0OT2p33ck9dw6gavBK6mY1i5sR3aXV4evdmAGUQc8S82uq1bqs3n4WhjbXJyJ8udG2Fldw=
+  bucket: golang-builds
+  skip_cleanup: true
+  acl: public_read
+  region: us-west-2
+  local_dir: build
+  upload-dir: cronner
+  on:
+    branch: master
