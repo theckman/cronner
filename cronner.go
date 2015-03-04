@@ -23,9 +23,10 @@ const MaxBody = 1536
 
 // args is for argument parsing
 type args struct {
-	Label  string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
-	Cmd    string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args; executed as user running cronner"`
-	Events bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
+	Label     string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
+	Cmd       string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args; executed as user running cronner"`
+	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
+	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
 }
 
 // parse function configures the go-flags parser and runs it
@@ -181,7 +182,7 @@ func main() {
 
 	var uuidStr string
 
-	if opts.Events {
+	if opts.AllEvents {
 		uuidStr = uuid.New()
 		// emit a DD event to indicate we are starting the job
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), "job starting", "info", uuidStr, gs)
@@ -201,7 +202,7 @@ func main() {
 		alertType = "error"
 	}
 
-	if opts.Events {
+	if opts.AllEvents || (opts.FailEvent && alertType == "error") {
 		// build the pieces of the completion event
 		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
 
@@ -219,6 +220,10 @@ func main() {
 		}
 
 		body = fmt.Sprintf("%voutput:%v", body, cmdOutput)
+
+		if uuidStr == "" {
+			uuidStr = uuid.New()
+		}
 
 		emitEvent(title, body, alertType, uuidStr, gs)
 	}
