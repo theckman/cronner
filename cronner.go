@@ -208,7 +208,13 @@ func main() {
 
 		body := fmt.Sprintf("exit code: %d\n", ret)
 		if err != nil {
-			body = fmt.Sprintf("%vmore:%v\n", body, err.Error())
+			er := regexp.MustCompile("^exit status ([-]?\\d)")
+
+			// do not show the 'more:' line, if the line is just telling us
+			// what the exit code is
+			if !er.MatchString(err.Error()) {
+				body = fmt.Sprintf("%vmore: %v\n", body, err.Error())
+			}
 		}
 
 		var cmdOutput string
@@ -219,7 +225,7 @@ func main() {
 			cmdOutput = "(none)"
 		}
 
-		body = fmt.Sprintf("%voutput:%v", body, cmdOutput)
+		body = fmt.Sprintf("%voutput: %v", body, cmdOutput)
 
 		if uuidStr == "" {
 			uuidStr = uuid.New()
