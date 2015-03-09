@@ -216,7 +216,7 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	//
 
 	// generate a body that will be truncated
-	body = randString(2100)
+	body = randString(4100)
 	title = "TE2"
 	alertType = "success"
 
