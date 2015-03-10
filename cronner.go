@@ -19,7 +19,7 @@ import (
 )
 
 // MaxBody is the maximum length of a event body
-const MaxBody = 1536
+const MaxBody = 4096
 
 // args is for argument parsing
 type args struct {
