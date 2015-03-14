@@ -9,6 +9,7 @@ branches:
 addons:
   apt_packages:
   - time
+sudo: false
 before_deploy:
 - mkdir build
 - mkdir $PD_BUILD_NAME
