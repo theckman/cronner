@@ -206,10 +206,10 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	event, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v", len(title), len(body), title, body, uuidStr, alertType)
+	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron", len(title), len(body), title, body, uuidStr, alertType)
 	eventStr := string(event)
 
-	c.Assert(eventStr, Equals, eventStub)
+	c.Check(eventStr, Equals, eventStub)
 
 	//
 	// Test truncation
@@ -228,10 +228,10 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	// simulate truncation and addition of the truncation messsage
 	truncatedBody := fmt.Sprintf("%v...\\n=== OUTPUT TRUNCATED ===\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
 
-	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v", len(title), len(truncatedBody), title, truncatedBody, uuidStr, alertType)
+	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron", len(title), len(truncatedBody), title, truncatedBody, uuidStr, alertType)
 	eventStr = string(event)
 
-	c.Assert(eventStr, Equals, eventStub)
+	c.Check(eventStr, Equals, eventStub)
 }
 
 //
