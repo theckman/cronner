@@ -134,7 +134,7 @@ func emitEvent(title, body, alertType, uuidStr string, g *godspeed.Godspeed) {
 		fields["aggregation_key"] = uuidStr
 	}
 
-	g.Event(title, body, fields, nil)
+	g.Event(title, body, fields, []string{"source_type:cron"})
 }
 
 func main() {
