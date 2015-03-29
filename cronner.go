@@ -187,7 +187,7 @@ func main() {
 	if opts.AllEvents {
 		uuidStr = uuid.New()
 		// emit a DD event to indicate we are starting the job
-		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), "job starting", opts.Label, "info", uuidStr, gs)
+		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID:%v\n", uuidStr), opts.Label, "info", uuidStr, gs)
 	}
 
 	// run the command and return the output as well as the return status
@@ -208,7 +208,11 @@ func main() {
 		// build the pieces of the completion event
 		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
 
-		body := fmt.Sprintf("exit code: %d\n", ret)
+		if uuidStr == "" {
+			uuidStr = uuid.New()
+		}
+
+		body := fmt.Sprintf("UUID: %v\nexit code: %d\n", uuidStr, ret)
 		if err != nil {
 			er := regexp.MustCompile("^exit status ([-]?\\d)")
 
@@ -228,10 +232,6 @@ func main() {
 		}
 
 		body = fmt.Sprintf("%voutput: %v", body, cmdOutput)
-
-		if uuidStr == "" {
-			uuidStr = uuid.New()
-		}
 
 		emitEvent(title, body, opts.Label, alertType, uuidStr, gs)
 	}
