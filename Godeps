@@ -1,3 +1,7 @@
-github.com/PagerDuty/godspeed  3ff4bbed1845caea8c86fa8a3cc83a7f7b0d0f9f
-github.com/codeskyblue/go-uuid 952abbca900b023c1a80bc522ff4795db50d9d6c
-github.com/jessevdk/go-flags   5e118789801496c93ba210d34ef1f2ce5a9173bd
+github.com/PagerDuty/godspeed      3ff4bbed1845caea8c86fa8a3cc83a7f7b0d0f9f
+github.com/codeskyblue/go-uuid     952abbca900b023c1a80bc522ff4795db50d9d6c
+github.com/jessevdk/go-flags       5e118789801496c93ba210d34ef1f2ce5a9173bd
+github.com/nightlyone/lockfile     43355cd47c95de7ec662a8da66abbfdbc8ab3d88
+github.com/tideland/goas/v3/logger e491c6b21b6b73f4afd2a5379869cc1f272a3071
+
+gopkg.in/check.v1

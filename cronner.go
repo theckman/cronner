@@ -17,10 +17,13 @@ import (
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
 	"github.com/jessevdk/go-flags"
+	"github.com/nightlyone/lockfile"
+	"github.com/tideland/goas/v3/logger"
 )
 
 // MaxBody is the maximum length of a event body
 const MaxBody = 4096
+const intErrCode = 200
 
 // args is for argument parsing
 type args struct {
@@ -30,7 +33,10 @@ type args struct {
 	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
 	LogOnFail bool   `short:"L" long:"log-on-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	LogPath   string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
+	LogLevel  string `short:"g" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
+	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
+	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be places"`
 }
 
 // parse function configures the go-flags parser and runs it
@@ -44,8 +50,8 @@ func (a *args) parse() error {
 	// unfortunately, help message is returned as an error
 	if err != nil {
 		if !strings.Contains(err.Error(), "Usage") {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(-1)
+			logger.Errorf("error: %v\n", err)
+			os.Exit(1)
 		} else {
 			fmt.Printf("%v\n", err.Error())
 			os.Exit(0)
@@ -65,20 +71,49 @@ func (a *args) parse() error {
 	// lowercase the metric to try and encourage sanity
 	a.Label = strings.ToLower(a.Label)
 
+	var logLevel logger.LogLevel
+
+	switch strings.ToLower(a.LogLevel) {
+	case "none":
+		logLevel = logger.LevelFatal
+	case "error":
+		logLevel = logger.LevelError
+	case "info":
+		logLevel = logger.LevelInfo
+	case "debug":
+		logLevel = logger.LevelDebug
+	default:
+		return fmt.Errorf("%v is not a known log level, try none, debug, info, or error", a.LogLevel)
+	}
+	logger.SetLevel(logLevel)
+
 	return nil
 }
 
-func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) (int, []byte, float64, error) {
-	var b bytes.Buffer
+func withLock(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, lockDir string) (int, float64, error) {
+	var lf lockfile.Lockfile
+	var err error
 
-	// comnbine stdout and stderr to the same buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
+	if lock {
+		lockPath := path.Join(lockDir, fmt.Sprintf("cronner-%v.lock", label))
+
+		lf, err = lockfile.New(lockPath)
+		if err != nil {
+			logger.Criticalf("Cannot init lock. reason: %v", err)
+			return intErrCode, 0, err
+		}
+
+		err = lf.TryLock()
+		if err != nil {
+			logger.Criticalf("Cannot lock. reason: %v", err)
+			return intErrCode, 0, err
+		}
+	}
 
 	// log start time
 	s := time.Now().UTC()
 
-	err := cmd.Run()
+	cmdErr := cmd.Run()
 
 	// This next section computes the wallclock run time in ms.
 	// However, there is the unfortunate limitation in that
@@ -89,18 +124,36 @@ func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) (int, []byte
 	// being off by a few milliseconds.
 	t := time.Since(s).Seconds() * 1000
 
+	if lock {
+		err = lf.Unlock()
+		if err != nil {
+			logger.Criticalf("Cannot unlock. reason: %v", err)
+			return intErrCode, t, err
+		}
+	}
+
 	var ret int
 
-	// if the command failed we want the exit status code
-	// and to change the state variables to their failure values
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
+	if cmdErr != nil {
+		if ee, ok := cmdErr.(*exec.ExitError); ok {
 			status := ee.Sys().(syscall.WaitStatus)
 			ret = status.ExitStatus()
 		} else {
-			ret = -1
+			ret = intErrCode
 		}
 	}
+
+	return ret, t, cmdErr
+}
+
+func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, lockDir string) (int, []byte, float64, error) {
+	var b bytes.Buffer
+
+	// comnbine stdout and stderr to the same buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+
+	ret, t, err := withLock(cmd, label, gs, lock, lockDir)
 
 	// emit the metric for how long it took us and return code
 	gs.Timing(fmt.Sprintf("cron.%v.time", label), t, nil)
@@ -144,15 +197,16 @@ func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspe
 }
 
 func main() {
+	logger.SetLogger(logger.NewStandardLogger(os.Stderr));
+
 	// get and parse the command line options
 	opts := &args{}
 	err := opts.parse()
 
 	// make sure parsing didn't bomb
 	if err != nil {
-		// print the error to stderr and exit -1
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(-1)
+		logger.Errorf("error: %v\n", err)
+		os.Exit(1)
 	}
 
 	// build a Godspeed client
@@ -160,8 +214,8 @@ func main() {
 
 	// make sure nothing went wrong with Godspeed
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(-1)
+		logger.Errorf("error: %v\n", err)
+		os.Exit(1)
 	}
 
 	gs.SetNamespace("pagerduty")
@@ -170,8 +224,8 @@ func main() {
 	hostname, err := os.Hostname()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(-1)
+		logger.Errorf("error: %v\n", err)
+		os.Exit(1)
 	}
 
 	// split the command in to its binary and arguments
@@ -194,7 +248,7 @@ func main() {
 	}
 
 	// run the command and return the output as well as the return status
-	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, gs)
+	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, gs, opts.Lock, opts.LockDir)
 
 	// default variables are for success
 	// we change them later if there was a failure
