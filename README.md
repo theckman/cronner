@@ -50,6 +50,7 @@ _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\
 ```
 
 # Development
+## Using gpm
 ```
 $ brew install gpm
 
@@ -63,3 +64,18 @@ $ gpm
 # this should produce a cronner binary
 $ go build
 ```
+
+## Without gpm
+With the configuration above, you won't be able to import any packages within the `cronner` repo from within the codebase.
+In other words, if a cronner file depends on a packge in a subdirectory, you wouldn't be able to locate it within the import path.
+To avoid this, you can skip using the gpm approach and use a more manual approach.
+
+* set up your Go build environment
+  * install Go: https://golang.org/doc/install
+  * set your GOROOT environment variable (in your .bashrc or .zshrc) to the Golang install directory
+  * make your GOPATH:
+    * `mkdir ~/go`
+  * set the GOPATH environment variable in your shell (as well as in your .bashrc or .zshrc) to the directory
+    * `export GOPATH=~/go`
+  * clone this repo
+    * `mkdir -p $GOPATH/src/github.com/PagerDuty && git clone git@github.com:PagerDuty/cronner.git $GOPATH/src/github.com/PagerDuty/cronner`
