@@ -48,3 +48,18 @@ pagerduty.cron.sleepytime2.time:5005.649979|ms
 pagerduty.cron.sleepytime2.exit_code:0|g
 _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:success
 ```
+
+# Development
+```
+$ brew install gpm
+
+$ cd cronner
+
+$ export GOPATH=$(pwd)
+
+# install dependencies
+$ gpm
+
+# this should produce a cronner binary
+$ go build
+```
