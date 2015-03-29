@@ -106,7 +106,7 @@ func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed) (int, []byte
 }
 
 // emit a godspeed (dogstatsd) event
-func emitEvent(title, body, alertType, uuidStr string, g *godspeed.Godspeed) {
+func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspeed) {
 	var buf bytes.Buffer
 
 	// if the event's body is bigger than MaxBody
@@ -134,7 +134,9 @@ func emitEvent(title, body, alertType, uuidStr string, g *godspeed.Godspeed) {
 		fields["aggregation_key"] = uuidStr
 	}
 
-	g.Event(title, body, fields, []string{"source_type:cron"})
+	tags := []string{"source_type:cron", fmt.Sprintf("label_name:%v", label)}
+
+	g.Event(title, body, fields, tags)
 }
 
 func main() {
@@ -185,7 +187,7 @@ func main() {
 	if opts.AllEvents {
 		uuidStr = uuid.New()
 		// emit a DD event to indicate we are starting the job
-		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), "job starting", "info", uuidStr, gs)
+		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), "job starting", opts.Label, "info", uuidStr, gs)
 	}
 
 	// run the command and return the output as well as the return status
@@ -231,6 +233,6 @@ func main() {
 			uuidStr = uuid.New()
 		}
 
-		emitEvent(title, body, alertType, uuidStr, gs)
+		emitEvent(title, body, opts.Label, alertType, uuidStr, gs)
 	}
 }
