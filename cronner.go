@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"syscall"
@@ -27,6 +28,9 @@ type args struct {
 	Cmd       string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args; executed as user running cronner"`
 	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
 	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
+	LogOnFail bool   `short:"L" long:"log-on-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
+	LogPath   string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
+	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 }
 
 // parse function configures the go-flags parser and runs it
@@ -182,10 +186,9 @@ func main() {
 	// get the *exec.Cmd instance
 	cmd := exec.Command(cmdParts[0], args...)
 
-	var uuidStr string
+	uuidStr := uuid.New()
 
 	if opts.AllEvents {
-		uuidStr = uuid.New()
 		// emit a DD event to indicate we are starting the job
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID:%v\n", uuidStr), opts.Label, "info", uuidStr, gs)
 	}
@@ -207,10 +210,6 @@ func main() {
 	if opts.AllEvents || (opts.FailEvent && alertType == "error") {
 		// build the pieces of the completion event
 		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", opts.Label, msg, wallRtMs/1000, hostname)
-
-		if uuidStr == "" {
-			uuidStr = uuid.New()
-		}
 
 		body := fmt.Sprintf("UUID: %v\nexit code: %d\n", uuidStr, ret)
 		if err != nil {
@@ -235,4 +234,59 @@ func main() {
 
 		emitEvent(title, body, opts.Label, alertType, uuidStr, gs)
 	}
+
+	// this code block is meant to be ran last
+	if alertType == "error" && opts.LogOnFail {
+		filename := path.Join(opts.LogPath, fmt.Sprintf("%v-%v.out", opts.Label, uuidStr))
+		if !saveOutput(filename, out, opts.Sensitive) {
+			os.Exit(1)
+		}
+	}
+}
+
+// bailOut is for failures during logfile writing
+func bailOut(out []byte, sensitive bool) bool {
+	if !sensitive {
+		fmt.Fprintf(os.Stderr, "here is the output in hopes you are looking here:\n\n%v", string(out))
+		os.Exit(1)
+	}
+	return false
+}
+
+// saveOutput saves the output (out) to the file specified
+func saveOutput(filename string, out []byte, sensitive bool) bool {
+	// check to see whehter or not the output file already exists
+	// this should really never happen, but just in case it does...
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "flagrant error: output file '%v' already exists\n", filename)
+		return bailOut(out, sensitive)
+	}
+
+	outFile, err := os.Create(filename)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening file to save command output: %v\n", err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	defer outFile.Close()
+
+	if err = outFile.Chmod(0400); err != nil {
+		fmt.Fprintf(os.Stderr, "error setting permissions (0400) on file '%v': %v\n", filename, err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	nwrt, err := outFile.Write(out)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing to file '%v': %v\n", filename, err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	if nwrt != len(out) {
+		fmt.Fprintf(os.Stderr, "error writing to file '%v': number of bytes written not equal to output (total: %d, written: %d)\n", filename, len(out), nwrt)
+		return bailOut(out, sensitive)
+	}
+
+	return true
 }
