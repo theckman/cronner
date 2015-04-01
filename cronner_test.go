@@ -6,9 +6,12 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -234,6 +237,30 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	eventStr = string(event)
 
 	c.Check(eventStr, Equals, eventStub)
+}
+
+func (t *TestSuite) Test_saveOutput(c *C) {
+	tmpDir, err := ioutil.TempDir("/tmp", "cronner_test")
+	c.Assert(err, IsNil)
+
+	defer os.RemoveAll(tmpDir)
+
+	filename := path.Join(tmpDir, fmt.Sprintf("outfile-%v.out", randString(8)))
+	out := []byte("this is a test!")
+
+	ok := saveOutput(filename, out, false)
+	c.Assert(ok, Equals, true)
+
+	stat, err := os.Stat(filename)
+	c.Assert(err, IsNil)
+	c.Check(stat.Mode(), Equals, os.FileMode(0400))
+
+	file, err := os.Open(filename)
+	c.Assert(err, IsNil)
+
+	contents, err := ioutil.ReadAll(file)
+	c.Assert(err, IsNil)
+	c.Check(string(out), Equals, string(contents))
 }
 
 //

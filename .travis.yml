@@ -7,8 +7,9 @@ branches:
   only:
   - master
 addons:
-  apt_packages:
-  - time
+  apt:
+    packages:
+    - time
 sudo: false
 before_deploy:
 - mkdir build
