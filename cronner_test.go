@@ -19,6 +19,8 @@ import (
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
+	"github.com/tideland/goas/v3/logger"
+	"github.com/nightlyone/lockfile"
 	. "gopkg.in/check.v1"
 )
 
@@ -63,7 +65,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	//
 	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
-	retCode, r, time, err := runCommand(cmd, "testCmd", t.gs)
+	retCode, r, time, err := runCommand(cmd, "testCmd", t.gs, false, "")
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 
@@ -123,7 +125,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs)
+	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs, false, "")
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 
@@ -179,7 +181,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 		cmd = exec.Command("/usr/bin/false")
 	}
 
-	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs)
+	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs, false, "")
 	c.Assert(err, Not(IsNil))
 	c.Assert(retCode, Equals, 1)
 
@@ -196,6 +198,29 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Assert(retFloat, Equals, float64(1))
+}
+
+func (t * TestSuite) Test_withLock_doesLock(c *C) {
+	// suppress errors when locking
+	logger.SetLevel(logger.LevelFatal)
+
+	label := "be.ok"
+	lockDir := "/tmp"
+
+	lockPath := path.Join(lockDir, fmt.Sprintf("cronner-%v.lock", label))
+
+	lf, err := lockfile.New(lockPath)
+	c.Assert(err, IsNil)
+
+	err = lf.TryLock()
+	c.Assert(err, IsNil)
+
+	cmd := exec.Command("/bin/true")
+	ret, _, _ := withLock(cmd, label, t.gs, true, lockDir)
+
+	lf.Unlock()
+
+	c.Assert(ret, Equals, 200)
 }
 
 func (t *TestSuite) Test_emitEvent(c *C) {
