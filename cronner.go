@@ -92,12 +92,10 @@ func (a *args) parse() error {
 
 func withLock(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, lockDir string) (int, float64, error) {
 	var lf lockfile.Lockfile
-	var err error
-
 	if lock {
 		lockPath := path.Join(lockDir, fmt.Sprintf("cronner-%v.lock", label))
 
-		lf, err = lockfile.New(lockPath)
+		lf, err := lockfile.New(lockPath)
 		if err != nil {
 			logger.Criticalf("Cannot init lock. reason: %v", err)
 			return intErrCode, 0, err
@@ -125,8 +123,7 @@ func withLock(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, loc
 	t := time.Since(s).Seconds() * 1000
 
 	if lock {
-		err = lf.Unlock()
-		if err != nil {
+		if err := lf.Unlock(); err != nil {
 			logger.Criticalf("Cannot unlock. reason: %v", err)
 			return intErrCode, t, err
 		}
