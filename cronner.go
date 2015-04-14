@@ -31,9 +31,9 @@ type args struct {
 	Cmd       string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args; executed as user running cronner"`
 	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
 	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
-	LogOnFail bool   `short:"L" long:"log-on-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
+	LogOnFail bool   `short:"F" long:"log-on-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	LogPath   string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
-	LogLevel  string `short:"g" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
+	LogLevel  string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
 	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be places"`
@@ -194,7 +194,7 @@ func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspe
 }
 
 func main() {
-	logger.SetLogger(logger.NewStandardLogger(os.Stderr));
+	logger.SetLogger(logger.NewStandardLogger(os.Stderr))
 
 	// get and parse the command line options
 	opts := &args{}
