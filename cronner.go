@@ -36,7 +36,7 @@ type args struct {
 	LogLevel  string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
-	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be places"`
+	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
 }
 
 // parse function configures the go-flags parser and runs it
