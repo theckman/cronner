@@ -44,7 +44,7 @@ type args struct {
 func (a *args) parse() error {
 	p := flags.NewParser(a, flags.HelpFlag|flags.PassDoubleDash)
 
-	_, err := p.Parse()
+	leftOvers, err := p.Parse()
 
 	// determine if there was a parsing error
 	// unfortunately, help message is returned as an error
@@ -65,7 +65,10 @@ func (a *args) parse() error {
 	}
 
 	if a.Cmd == "" {
-		return fmt.Errorf("you must specify a command to run")
+		if len(leftOvers) == 0 {
+			return fmt.Errorf("you must specify a command to run either using by adding it to the end, or using the command flag")
+		}
+		a.Cmd = strings.Join(leftOvers, " ")
 	}
 
 	// lowercase the metric to try and encourage sanity
