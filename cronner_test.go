@@ -19,8 +19,8 @@ import (
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
-	"github.com/tideland/goas/v3/logger"
 	"github.com/nightlyone/lockfile"
+	"github.com/tideland/goas/v3/logger"
 	. "gopkg.in/check.v1"
 )
 
@@ -65,7 +65,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	//
 	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
-	retCode, r, time, err := runCommand(cmd, "testCmd", t.gs, false, "")
+	retCode, r, time, err := runCommand(cmd, "testCmd", true, t.gs, false, "")
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 
@@ -125,7 +125,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs, false, "")
+	retCode, r, time, err = runCommand(cmd, "testCmd", true, t.gs, false, "")
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 
@@ -181,7 +181,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 		cmd = exec.Command("/usr/bin/false")
 	}
 
-	retCode, r, time, err = runCommand(cmd, "testCmd", t.gs, false, "")
+	retCode, r, time, err = runCommand(cmd, "testCmd", true, t.gs, false, "")
 	c.Assert(err, Not(IsNil))
 	c.Assert(retCode, Equals, 1)
 
@@ -198,9 +198,34 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Assert(retFloat, Equals, float64(1))
+
+	//
+	// Test that no output is given
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	cmd = nil
+	time = 0
+	match = nil
+	retCode = 0
+
+	cmd = exec.Command("/bin/echo", "something")
+
+	retCode, r, _, err = runCommand(cmd, "testCmd", false, t.gs, false, "")
+	c.Assert(err, IsNil)
+	c.Assert(retCode, Equals, 0)
+	c.Check(len(r), Equals, 0)
+
+	// clear the statsd return channel
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
 }
 
-func (t * TestSuite) Test_withLock_doesLock(c *C) {
+func (t *TestSuite) Test_withLock_doesLock(c *C) {
 	// suppress errors when locking
 	logger.SetLevel(logger.LevelFatal)
 
@@ -264,7 +289,7 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	c.Check(eventStr, Equals, eventStub)
 }
 
-func (t *TestSuite) Test_saveOutput(c *C) {
+func (t *TestSuite) Test_writeOutput(c *C) {
 	tmpDir, err := ioutil.TempDir("/tmp", "cronner_test")
 	c.Assert(err, IsNil)
 
@@ -273,7 +298,7 @@ func (t *TestSuite) Test_saveOutput(c *C) {
 	filename := path.Join(tmpDir, fmt.Sprintf("outfile-%v.out", randString(8)))
 	out := []byte("this is a test!")
 
-	ok := saveOutput(filename, out, false)
+	ok := writeOutput(filename, out, false)
 	c.Assert(ok, Equals, true)
 
 	stat, err := os.Stat(filename)
