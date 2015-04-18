@@ -146,12 +146,17 @@ func withLock(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, loc
 	return ret, t, cmdErr
 }
 
-func runCommand(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, lockDir string) (int, []byte, float64, error) {
+func runCommand(cmd *exec.Cmd, label string, save bool, gs *godspeed.Godspeed, lock bool, lockDir string) (int, []byte, float64, error) {
 	var b bytes.Buffer
 
-	// comnbine stdout and stderr to the same buffer
-	cmd.Stdout = &b
-	cmd.Stderr = &b
+	if save {
+		// comnbine stdout and stderr to the same buffer
+		cmd.Stdout = &b
+		cmd.Stderr = &b
+	} else {
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+	}
 
 	ret, t, err := withLock(cmd, label, gs, lock, lockDir)
 
@@ -247,8 +252,14 @@ func main() {
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID:%v\n", uuidStr), opts.Label, "info", uuidStr, gs)
 	}
 
+	var saveOutput bool
+
+	if opts.AllEvents || opts.FailEvent || opts.LogOnFail {
+		saveOutput = true
+	}
+
 	// run the command and return the output as well as the return status
-	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, gs, opts.Lock, opts.LockDir)
+	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, saveOutput, gs, opts.Lock, opts.LockDir)
 
 	// default variables are for success
 	// we change them later if there was a failure
@@ -292,7 +303,7 @@ func main() {
 	// this code block is meant to be ran last
 	if alertType == "error" && opts.LogOnFail {
 		filename := path.Join(opts.LogPath, fmt.Sprintf("%v-%v.out", opts.Label, uuidStr))
-		if !saveOutput(filename, out, opts.Sensitive) {
+		if !writeOutput(filename, out, opts.Sensitive) {
 			os.Exit(1)
 		}
 	}
@@ -307,8 +318,8 @@ func bailOut(out []byte, sensitive bool) bool {
 	return false
 }
 
-// saveOutput saves the output (out) to the file specified
-func saveOutput(filename string, out []byte, sensitive bool) bool {
+// writeOutput saves the output (out) to the file specified
+func writeOutput(filename string, out []byte, sensitive bool) bool {
 	// check to see whehter or not the output file already exists
 	// this should really never happen, but just in case it does...
 	if _, err := os.Stat(filename); !os.IsNotExist(err) {
