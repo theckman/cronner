@@ -31,7 +31,7 @@ type args struct {
 	Cmd       string `short:"c" long:"command" default:"" description:"command to run (please use full path) and its args; executed as user running cronner"`
 	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
 	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
-	LogOnFail bool   `short:"F" long:"log-on-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
+	LogFail   bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	LogPath   string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
 	LogLevel  string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
@@ -255,7 +255,7 @@ func main() {
 
 	var saveOutput bool
 
-	if opts.AllEvents || opts.FailEvent || opts.LogOnFail {
+	if opts.AllEvents || opts.FailEvent || opts.LogFail {
 		saveOutput = true
 	}
 
@@ -302,7 +302,7 @@ func main() {
 	}
 
 	// this code block is meant to be ran last
-	if alertType == "error" && opts.LogOnFail {
+	if alertType == "error" && opts.LogFail {
 		filename := path.Join(opts.LogPath, fmt.Sprintf("%v-%v.out", opts.Label, uuidStr))
 		if !writeOutput(filename, out, opts.Sensitive) {
 			os.Exit(1)
