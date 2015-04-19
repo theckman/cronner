@@ -71,8 +71,9 @@ func (a *args) parse() error {
 		a.Cmd = strings.Join(leftOvers, " ")
 	}
 
-	// lowercase the metric to try and encourage sanity
-	a.Label = strings.ToLower(a.Label)
+	// lowercase the metric and replace spaces with underscores
+	// to try and encourage sanity
+	a.Label = strings.Replace(strings.ToLower(a.Label), " ", "_", -1)
 
 	var logLevel logger.LogLevel
 
