@@ -12,12 +12,21 @@ Usage:
   cronner [OPTIONS]
 
 Application Options:
-  -l, --label=   name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
-  -c, --command= command to run (please use full path) and its args; executed as user running cronner
-  -e, --event    emit a start and end datadog event (false)
+  -l, --label=      name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
+  -c, --command=    command to run (please use full path) and its args; executed as user running cronner
+  -e, --event       emit a start and end datadog event (false)
+  -E, --event-fail  only emit an event on failure (false)
+  -F, --log-fail    when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
+      --log-path=   where to place the log files for command output (path for -l/--log-on-fail output) (/var/log/cronner/)
+  -L, --log-level=  set the level at which to log at [none|error|info|debug] (error)
+  -s, --sensitive   specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
+  -k, --lock        lock based on label so that multiple commands with the same label can not run concurrently (false)
+  -d, --lock-dir=   the directory where lock files will be placed (/var/lock)
 
 Help Options:
-  -h, --help     Show this help message
+  -h, --help        Show this help message
+
+
 ```
 
 Running a command:
