@@ -1,4 +1,4 @@
-// Copyright 2014 PagerDuty, Inc.
+// Copyright 2014-2015 PagerDuty, Inc.
 // All rights reserved - Do not redistribute!
 
 package main
