@@ -92,8 +92,8 @@ func runCommand(cmd *exec.Cmd, label string, save bool, gs *godspeed.Godspeed, l
 	ret, t, err := withLock(cmd, label, gs, lock, lockDir)
 
 	// emit the metric for how long it took us and return code
-	gs.Timing(fmt.Sprintf("cron.%v.time", label), t, nil)
-	gs.Gauge(fmt.Sprintf("cron.%v.exit_code", label), float64(ret), nil)
+	gs.Timing(fmt.Sprintf("%v.time", label), t, nil)
+	gs.Gauge(fmt.Sprintf("%v.exit_code", label), float64(ret), nil)
 
 	return ret, b.Bytes(), t, err
 }
@@ -154,7 +154,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	gs.SetNamespace("pagerduty")
+	gs.SetNamespace(opts.Namespace)
 
 	// get the hostname and validate nothing happened
 	hostname, err := os.Hostname()
@@ -180,7 +180,7 @@ func main() {
 
 	if opts.AllEvents {
 		// emit a DD event to indicate we are starting the job
-		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID:%v\n", uuidStr), opts.Label, "info", uuidStr, gs)
+		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID: %v\n", uuidStr), opts.Label, "info", uuidStr, gs)
 	}
 
 	var saveOutput bool
