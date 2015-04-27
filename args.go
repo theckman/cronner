@@ -15,8 +15,8 @@ import (
 
 // binArgs is for argument parsing
 type binArgs struct {
+	Cmd       string // this is not a command line flag, but rather parsed results
 	Label     string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
-	Cmd       string `short:"c" long:"command" default:"" description:"(deprecated; use positional args) command to run (please use full path) and its args; executed as user running cronner"`
 	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
 	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
 	LogFail   bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
@@ -57,12 +57,10 @@ func (a *binArgs) parse() error {
 		return fmt.Errorf("cron label '%v' is invalid, it can only be alphanumeric with underscores and periods", a.Label)
 	}
 
-	if a.Cmd == "" {
-		if len(a.Args.Command) == 0 {
-			return fmt.Errorf("you must specify a command to run either using by adding it to the end, or using the command flag")
-		}
-		a.Cmd = strings.Join(a.Args.Command, " ")
+	if len(a.Args.Command) == 0 {
+		return fmt.Errorf("you must specify a command to run either using by adding it to the end, or using the command flag")
 	}
+	a.Cmd = strings.Join(a.Args.Command, " ")
 
 	// lowercase the metric and replace spaces with underscores
 	// to try and encourage sanity
