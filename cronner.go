@@ -1,6 +1,7 @@
 // Copyright 2014-2015 PagerDuty, Inc.
 // All rights reserved - Do not redistribute!
 
+// Package main is the main thing, man.
 package main
 
 import (
@@ -11,92 +12,14 @@ import (
 	"path"
 	"regexp"
 	"strings"
-	"syscall"
-	"time"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
-	"github.com/nightlyone/lockfile"
 	"github.com/tideland/goas/v3/logger"
 )
 
 // MaxBody is the maximum length of a event body
 const MaxBody = 4096
-const intErrCode = 200
-
-func withLock(cmd *exec.Cmd, label string, gs *godspeed.Godspeed, lock bool, lockDir string) (int, float64, error) {
-	var lf lockfile.Lockfile
-	if lock {
-		lockPath := path.Join(lockDir, fmt.Sprintf("cronner-%v.lock", label))
-
-		lf, err := lockfile.New(lockPath)
-		if err != nil {
-			logger.Criticalf("Cannot init lock. reason: %v", err)
-			return intErrCode, 0, err
-		}
-
-		err = lf.TryLock()
-		if err != nil {
-			logger.Criticalf("Cannot lock. reason: %v", err)
-			return intErrCode, 0, err
-		}
-	}
-
-	// log start time
-	s := time.Now().UTC()
-
-	cmdErr := cmd.Run()
-
-	// This next section computes the wallclock run time in ms.
-	// However, there is the unfortunate limitation in that
-	// it uses the clock that gets adjusted by ntpd. Within pure
-	// Go, I don't have access to CLOCK_MONOTONIC_RAW.
-	//
-	// However, based on our usage I don't think we care about it
-	// being off by a few milliseconds.
-	t := time.Since(s).Seconds() * 1000
-
-	if lock {
-		if err := lf.Unlock(); err != nil {
-			logger.Criticalf("Cannot unlock. reason: %v", err)
-			return intErrCode, t, err
-		}
-	}
-
-	var ret int
-
-	if cmdErr != nil {
-		if ee, ok := cmdErr.(*exec.ExitError); ok {
-			status := ee.Sys().(syscall.WaitStatus)
-			ret = status.ExitStatus()
-		} else {
-			ret = intErrCode
-		}
-	}
-
-	return ret, t, cmdErr
-}
-
-func runCommand(cmd *exec.Cmd, label string, save bool, gs *godspeed.Godspeed, lock bool, lockDir string) (int, []byte, float64, error) {
-	var b bytes.Buffer
-
-	if save {
-		// comnbine stdout and stderr to the same buffer
-		cmd.Stdout = &b
-		cmd.Stderr = &b
-	} else {
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-	}
-
-	ret, t, err := withLock(cmd, label, gs, lock, lockDir)
-
-	// emit the metric for how long it took us and return code
-	gs.Timing(fmt.Sprintf("%v.time", label), t, nil)
-	gs.Gauge(fmt.Sprintf("%v.exit_code", label), float64(ret), nil)
-
-	return ret, b.Bytes(), t, err
-}
 
 // emit a godspeed (dogstatsd) event
 func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspeed) {
@@ -136,7 +59,7 @@ func main() {
 	logger.SetLogger(logger.NewStandardLogger(os.Stderr))
 
 	// get and parse the command line options
-	opts := &args{}
+	opts := &binArgs{}
 	err := opts.parse()
 
 	// make sure parsing didn't bomb
@@ -183,14 +106,8 @@ func main() {
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", opts.Label, hostname), fmt.Sprintf("UUID: %v\n", uuidStr), opts.Label, "info", uuidStr, gs)
 	}
 
-	var saveOutput bool
-
-	if opts.AllEvents || opts.FailEvent || opts.LogFail {
-		saveOutput = true
-	}
-
 	// run the command and return the output as well as the return status
-	ret, out, wallRtMs, err := runCommand(cmd, opts.Label, saveOutput, gs, opts.Lock, opts.LockDir)
+	ret, out, wallRtMs, err := runCommand(cmd, gs, opts)
 
 	// default variables are for success
 	// we change them later if there was a failure
