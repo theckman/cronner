@@ -13,8 +13,8 @@ import (
 	"github.com/tideland/goas/v3/logger"
 )
 
-// args is for argument parsing
-type args struct {
+// binArgs is for argument parsing
+type binArgs struct {
 	Label     string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
 	Cmd       string `short:"c" long:"command" default:"" description:"(deprecated; use positional args) command to run (please use full path) and its args; executed as user running cronner"`
 	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
@@ -33,7 +33,7 @@ type args struct {
 
 // parse function configures the go-flags parser and runs it
 // it also does some light input validation
-func (a *args) parse() error {
+func (a *binArgs) parse() error {
 	p := flags.NewParser(a, flags.HelpFlag|flags.PassDoubleDash)
 	//p.Usage = Usage
 
@@ -46,7 +46,7 @@ func (a *args) parse() error {
 			logger.Errorf("error: %v\n", err)
 			os.Exit(1)
 		} else {
-			fmt.Printf("%v", err.Error())
+			fmt.Printf("%v", err)
 			os.Exit(0)
 		}
 	}

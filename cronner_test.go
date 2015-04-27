@@ -10,16 +10,11 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"os/exec"
 	"path"
-	"regexp"
-	"runtime"
-	"strconv"
 	"testing"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
-	"github.com/nightlyone/lockfile"
 	"github.com/tideland/goas/v3/logger"
 	. "gopkg.in/check.v1"
 )
@@ -31,15 +26,26 @@ type TestSuite struct {
 	l    *net.UDPConn
 	ctrl chan int
 	out  chan []byte
+	a    *binArgs
 }
 
 var _ = Suite(&TestSuite{})
 
 func (t *TestSuite) SetUpSuite(c *C) {
+	// suppress application logging
+	logger.SetLevel(logger.LevelFatal)
+
 	var err error
+
 	t.gs, err = godspeed.NewDefault()
 	c.Assert(err, IsNil)
 	t.gs.SetNamespace("cronner")
+
+	t.a = &binArgs{
+		Label:     "testCmd",
+		AllEvents: true,
+		LockDir:   c.MkDir(),
+	}
 }
 
 func (t *TestSuite) TearDownSuite(c *C) {
@@ -57,195 +63,6 @@ func (t *TestSuite) SetUpTest(c *C) {
 func (t *TestSuite) TearDownTest(c *C) {
 	close(t.ctrl)
 	t.l.Close()
-}
-
-func (t *TestSuite) Test_runCommand(c *C) {
-	//
-	// Test a command that finishes in 0.3 seconds
-	//
-	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
-
-	retCode, r, time, err := runCommand(cmd, "testCmd", true, t.gs, false, "")
-	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
-
-	stat, ok := <-t.out
-	c.Assert(ok, Equals, true)
-
-	timeStatRegex := regexp.MustCompile("^cronner.testCmd.time:([0-9\\.]+)\\|ms$")
-	match := timeStatRegex.FindAllStringSubmatch(string(stat), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 2)
-
-	statFloat, err := strconv.ParseFloat(match[0][1], 64)
-	c.Assert(err, IsNil)
-	c.Assert(statFloat, Equals, time)
-
-	stat, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	retStatRegex := regexp.MustCompile("^cronner.testCmd.exit_code:([0-9\\.]+)\\|g$")
-	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 2)
-
-	retFloat, err := strconv.ParseFloat(match[0][1], 64)
-	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(0))
-
-	var timely bool
-
-	// assume the command run time will be within 20ms of correct,
-	// note sure how tight we can make this window without incurring
-	// false-failures.
-	if time > 300 && time < 320 {
-		timely = true
-	}
-	c.Assert(timely, Equals, true)
-
-	timeRegex := regexp.MustCompile("((?m)^real[[:space:]]+([0-9\\.]+)$)")
-	match = timeRegex.FindAllStringSubmatch(string(r), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 3)
-	c.Assert(match[0][2], Equals, "0.30")
-
-	//
-	// Test a command that finishes in 1 second
-	//
-
-	// Reset variables used
-	r = nil
-	err = nil
-	cmd = nil
-	time = 0
-	match = nil
-	timely = false
-	retCode = 0
-	timeRegex = nil
-
-	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
-
-	retCode, r, time, err = runCommand(cmd, "testCmd", true, t.gs, false, "")
-	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
-
-	stat, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 2)
-
-	statFloat, err = strconv.ParseFloat(match[0][1], 64)
-	c.Assert(err, IsNil)
-	c.Assert(statFloat, Equals, time)
-
-	if time > 1000 && time < 1020 {
-		timely = true
-	}
-	c.Assert(timely, Equals, true)
-
-	timeRegex = regexp.MustCompile("((?m)^real[[:space:]]+([0-9\\.]+)$)")
-	match = timeRegex.FindAllStringSubmatch(string(r), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 3)
-	c.Assert(match[0][2], Equals, "1.00")
-
-	stat, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 2)
-
-	retFloat, err = strconv.ParseFloat(match[0][1], 64)
-	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(0))
-
-	//
-	// Test a valid return code is given
-	//
-
-	// Reset variables used
-	r = nil
-	err = nil
-	cmd = nil
-	time = 0
-	match = nil
-	retCode = 0
-
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("/bin/false")
-	case "darwin":
-		cmd = exec.Command("/usr/bin/false")
-	}
-
-	retCode, r, time, err = runCommand(cmd, "testCmd", true, t.gs, false, "")
-	c.Assert(err, Not(IsNil))
-	c.Assert(retCode, Equals, 1)
-
-	_, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	stat, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
-	c.Assert(len(match), Equals, 1)
-	c.Assert(len(match[0]), Equals, 2)
-
-	retFloat, err = strconv.ParseFloat(match[0][1], 64)
-	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(1))
-
-	//
-	// Test that no output is given
-	//
-
-	// Reset variables used
-	r = nil
-	err = nil
-	cmd = nil
-	time = 0
-	match = nil
-	retCode = 0
-
-	cmd = exec.Command("/bin/echo", "something")
-
-	retCode, r, _, err = runCommand(cmd, "testCmd", false, t.gs, false, "")
-	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
-	c.Check(len(r), Equals, 0)
-
-	// clear the statsd return channel
-	_, ok = <-t.out
-	c.Assert(ok, Equals, true)
-	_, ok = <-t.out
-	c.Assert(ok, Equals, true)
-}
-
-func (t *TestSuite) Test_withLock_doesLock(c *C) {
-	// suppress errors when locking
-	logger.SetLevel(logger.LevelFatal)
-
-	label := "be.ok"
-	lockDir := "/tmp"
-
-	lockPath := path.Join(lockDir, fmt.Sprintf("cronner-%v.lock", label))
-
-	lf, err := lockfile.New(lockPath)
-	c.Assert(err, IsNil)
-
-	err = lf.TryLock()
-	c.Assert(err, IsNil)
-
-	cmd := exec.Command("/bin/true")
-	ret, _, _ := withLock(cmd, label, t.gs, true, lockDir)
-
-	lf.Unlock()
-
-	c.Assert(ret, Equals, 200)
 }
 
 func (t *TestSuite) Test_emitEvent(c *C) {
