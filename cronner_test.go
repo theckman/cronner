@@ -39,7 +39,7 @@ func (t *TestSuite) SetUpSuite(c *C) {
 	var err error
 	t.gs, err = godspeed.NewDefault()
 	c.Assert(err, IsNil)
-	t.gs.SetNamespace("pagerduty")
+	t.gs.SetNamespace("cronner")
 }
 
 func (t *TestSuite) TearDownSuite(c *C) {
@@ -72,7 +72,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	stat, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	timeStatRegex := regexp.MustCompile("^pagerduty.cron.testCmd.time:([0-9\\.]+)\\|ms$")
+	timeStatRegex := regexp.MustCompile("^cronner.testCmd.time:([0-9\\.]+)\\|ms$")
 	match := timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
@@ -84,7 +84,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
 
-	retStatRegex := regexp.MustCompile("^pagerduty.cron.testCmd.exit_code:([0-9\\.]+)\\|g$")
+	retStatRegex := regexp.MustCompile("^cronner.testCmd.exit_code:([0-9\\.]+)\\|g$")
 	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)

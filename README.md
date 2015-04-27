@@ -9,29 +9,31 @@ When emitting a finished event, `cronner` provides the combined stdout and stder
 Help output:
 ```
 Usage:
-  cronner [OPTIONS]
+  cronner [OPTIONS] command [arguments]...
 
 Application Options:
-  -l, --label=      name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
-  -c, --command=    command to run (please use full path) and its args; executed as user running cronner
-  -e, --event       emit a start and end datadog event (false)
-  -E, --event-fail  only emit an event on failure (false)
-  -F, --log-fail    when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
-      --log-path=   where to place the log files for command output (path for -l/--log-on-fail output) (/var/log/cronner/)
-  -L, --log-level=  set the level at which to log at [none|error|info|debug] (error)
-  -s, --sensitive   specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
-  -k, --lock        lock based on label so that multiple commands with the same label can not run concurrently (false)
-  -d, --lock-dir=   the directory where lock files will be placed (/var/lock)
+  -l, --label=               name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
+  -c, --command=             (deprecated; use positional args) command to run (please use full path) and its args; executed as user running cronner
+  -e, --event                emit a start and end datadog event (false)
+  -E, --event-fail           only emit an event on failure (false)
+  -F, --log-fail             when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
+      --log-path=            where to place the log files for command output (path for -l/--log-on-fail output) (/var/log/cronner/)
+  -L, --log-level=           set the level at which to log at [none|error|info|debug] (error)
+  -s, --sensitive            specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
+  -k, --lock                 lock based on label so that multiple commands with the same label can not run concurrently (false)
+  -d, --lock-dir=            the directory where lock files will be placed (/var/lock)
+  -N, --namespace=           namespace for statsd emissions, value is prepended to metric name by statsd client (cronner)
 
 Help Options:
-  -h, --help        Show this help message
+  -h, --help                 Show this help message
 
-
+Arguments:
+  command [arguments]
 ```
 
 Running a command:
 ```
-$ cronner -c 'sleep 10' -l sleepytime
+$ cronner -l sleepytime -- /bin/sleep 10
 ```
 
 Listening to the statsd emissions looks like this:
@@ -46,7 +48,7 @@ It emits a timing metric for how long it took for the command to run, as well as
 Running a command and emitting a start and end event:
 
 ```
-$ cronner -e -l sleepytime2 -c 'sleep 5'
+$ cronner -e -l sleepytime2 -- /bin/sleep 5
 ```
 
 And the statsd interceptions look like this:
