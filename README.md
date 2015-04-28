@@ -13,7 +13,6 @@ Usage:
 
 Application Options:
   -l, --label=               name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
-  -c, --command=             (deprecated; use positional args) command to run (please use full path) and its args; executed as user running cronner
   -e, --event                emit a start and end datadog event (false)
   -E, --event-fail           only emit an event on failure (false)
   -F, --log-fail             when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
