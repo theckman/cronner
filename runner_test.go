@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"path"
 	"regexp"
@@ -167,11 +168,19 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	cmd = exec.Command("/bin/echo", "something")
 
 	t.a.AllEvents = false
+	t.a.Lock = true
+
+	lf, err := lockfile.New(path.Join(t.a.LockDir, "cronner-testCmd.lock"))
+	c.Assert(err, IsNil)
 
 	retCode, r, _, err = runCommand(cmd, t.gs, t.a)
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
+
+	// assert that the lockfile was removed
+	_, err = os.Stat(string(lf))
+	c.Assert(os.IsNotExist(err), Equals, true)
 
 	// clear the statsd return channel
 	_, ok = <-t.out
@@ -187,14 +196,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	err = nil
 	retCode = -512
 
-	lf, err := lockfile.New(path.Join(t.a.LockDir, "cronner-testCmd.lock"))
-	c.Assert(err, IsNil)
-
 	err = lf.TryLock()
 	c.Assert(err, IsNil)
 	defer lf.Unlock()
-
-	t.a.Lock = true
 
 	retCode, _, _, err = runCommand(cmd, t.gs, t.a)
 	c.Assert(err, Not(IsNil))
