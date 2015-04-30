@@ -25,7 +25,7 @@ type binArgs struct {
 	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
 	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
-	Namespace string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
+	Namespace string `short:"N" long:"namespace" default:"pagerduty.cron" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
 	Args      struct {
 		Command []string `positional-arg-name:"command [arguments]"`
 	} `positional-args:"yes" required:"true"`
