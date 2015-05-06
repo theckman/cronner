@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -8,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/codeskyblue/go-uuid"
 	"github.com/nightlyone/lockfile"
 	. "gopkg.in/check.v1"
 )
@@ -16,12 +18,14 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	//
 	// Test a command that finishes in 0.3 seconds
 	//
+	uuidStr := uuid.New()
+	host := "brainbox01"
 	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
 	// runButts(cmd *exec.Cmd, label string, save bool, gs *godspeed.Godspeed, lock bool, lockDir string)
-	retCode, r, time, err := runCommand(cmd, t.gs, t.a)
+	retCode, r, time, err := runCommand(cmd, t.gs, t.a, host, uuidStr)
 	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
+	c.Check(retCode, Equals, 0)
 
 	stat, ok := <-t.out
 	c.Assert(ok, Equals, true)
@@ -33,7 +37,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	statFloat, err := strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Assert(statFloat, Equals, time)
+	c.Check(statFloat, Equals, time)
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -45,7 +49,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	retFloat, err := strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(0))
+	c.Check(retFloat, Equals, float64(0))
 
 	var timely bool
 
@@ -61,7 +65,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	match = timeRegex.FindAllStringSubmatch(string(r), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 3)
-	c.Assert(match[0][2], Equals, "0.30")
+	c.Check(match[0][2], Equals, "0.30")
 
 	//
 	// Test a command that finishes in 1 second
@@ -79,9 +83,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	retCode, r, time, err = runCommand(cmd, t.gs, t.a)
+	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
 	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
+	c.Check(retCode, Equals, 0)
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -92,18 +96,18 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	statFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Assert(statFloat, Equals, time)
+	c.Check(statFloat, Equals, time)
 
 	if time > 1000 && time < 1020 {
 		timely = true
 	}
-	c.Assert(timely, Equals, true)
+	c.Check(timely, Equals, true)
 
 	timeRegex = regexp.MustCompile("((?m)^real[[:space:]]+([0-9\\.]+)$)")
 	match = timeRegex.FindAllStringSubmatch(string(r), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 3)
-	c.Assert(match[0][2], Equals, "1.00")
+	c.Check(match[0][2], Equals, "1.00")
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -114,7 +118,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(0))
+	c.Check(retFloat, Equals, float64(0))
 
 	//
 	// Test a valid return code is given
@@ -135,9 +139,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 		cmd = exec.Command("/usr/bin/false")
 	}
 
-	retCode, r, time, err = runCommand(cmd, t.gs, t.a)
+	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
 	c.Assert(err, Not(IsNil))
-	c.Assert(retCode, Equals, 1)
+	c.Check(retCode, Equals, 1)
 
 	_, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -151,7 +155,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Assert(retFloat, Equals, float64(1))
+	c.Check(retFloat, Equals, float64(1))
 
 	//
 	// Test that no output is given
@@ -173,7 +177,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	lf, err := lockfile.New(path.Join(t.a.LockDir, "cronner-testCmd.lock"))
 	c.Assert(err, IsNil)
 
-	retCode, r, _, err = runCommand(cmd, t.gs, t.a)
+	retCode, r, _, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
@@ -200,8 +204,58 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Assert(err, IsNil)
 	defer lf.Unlock()
 
-	retCode, _, _, err = runCommand(cmd, t.gs, t.a)
+	retCode, _, _, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
 	c.Assert(err, Not(IsNil))
 	c.Check(err.Error(), Equals, "Locked by other process")
 	c.Check(retCode, Equals, 200)
+
+	//
+	// Test that warning Dogstatsd events are emitted if a
+	// command is taking too long to run
+	//
+
+	// Reset variables used
+	err = nil
+	retCode = -512
+
+	t.a.Lock = false
+	t.a.WarnAfter = 2
+
+	cmd = exec.Command("/bin/sleep", "3")
+
+	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	c.Assert(err, IsNil)
+	c.Assert(retCode, Equals, 0)
+	c.Check(len(r), Equals, 0)
+
+	// clear the statsd return channel
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{56,65}:Cron testCmd still running after 2 seconds on brainbox01|UUID: %v\nrunning for 2 seconds|k:%v|s:cron|t:warning|#source_type:cron,label_name:testCmd`, uuidStr, uuidStr),
+	)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+
+	statFloat, err = strconv.ParseFloat(match[0][1], 64)
+	c.Assert(err, IsNil)
+	c.Check(statFloat, Equals, time)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	match = retStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+
+	retFloat, err = strconv.ParseFloat(match[0][1], 64)
+	c.Assert(err, IsNil)
+	c.Check(retFloat, Equals, float64(0))
 }

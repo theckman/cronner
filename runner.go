@@ -15,7 +15,28 @@ import (
 
 const intErrCode = 200
 
-func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs) (int, []byte, float64, error) {
+// execCmd is a function to run a command and send
+// the error value back through a channel
+func execCmd(cmd *exec.Cmd, c chan<- error) {
+	c <- cmd.Run()
+	close(c)
+}
+
+// runCommand is a function that handles the entire process of running a command:
+//
+// * file-based locking for the command
+// * actually running the command
+// * timing how long it takes and emitting a metric for it
+// * tracking command return codes and emitting a metric for it
+// * emitting warning metrics if a command has exceeded its running time
+//
+// it returns the following:
+//
+// * (int) return code
+// * ([]byte) command output
+// * (float64) run time
+// * (error) WISOTT
+func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidStr string) (int, []byte, float64, error) {
 	// set up the output buffer for the command
 	var b bytes.Buffer
 
@@ -48,10 +69,53 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs) (int, []byt
 		}
 	}
 
-	// get the current (start) time in the UTC epoch
-	// and run the command
-	s := time.Now().UTC()
-	err = cmd.Run()
+	var s time.Time
+	ch := make(chan error)
+
+	// if we have a timer value, do all the extra logic to
+	// use the ticker to send out warning events
+	//
+	// otherwise, KISS
+	if opts.WarnAfter > 0 {
+		// use time.Tick() instead of time.NewTicker() because
+		// we don't ever need to run Stop() on this ticker as cronner
+		// won't live much beyond the command returning
+		tickChan := time.Tick(time.Second * time.Duration(opts.WarnAfter))
+
+		// get the current (start) time since the UTC epoch
+		// and run the command
+		s = time.Now().UTC()
+		go execCmd(cmd, ch)
+
+		// this is an open loop to wait for either the command to return
+		// or time to be sent over the ticker channel
+		//
+		// the WaitLoop label is used to break from the select statement
+	WaitLoop:
+		for {
+			// wait for either the command channel to return an error value
+			// or wait for the ticket channel to return a time.Time value
+			select {
+			case m := <-ch:
+				// the comand returned; set the error vailue and bail out of here
+				err = m
+				break WaitLoop
+			case _, ok := <-tickChan:
+				if ok {
+					runSecs := time.Since(s).Seconds()
+					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", opts.Label, int64(runSecs), host)
+					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", uuidStr, int64(runSecs))
+					emitEvent(title, body, opts.Label, "warning", uuidStr, gs)
+				}
+			}
+		}
+	} else {
+		// get the current (start) time since the UTC epoch
+		// and run the command
+		s = time.Now().UTC()
+		go execCmd(cmd, ch)
+		err = <-ch
+	}
 
 	// This next section computes the wallclock run time in ms.
 	// However, there is the unfortunate limitation in that
