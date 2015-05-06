@@ -107,7 +107,7 @@ func main() {
 	}
 
 	// run the command and return the output as well as the return status
-	ret, out, wallRtMs, err := runCommand(cmd, gs, opts)
+	ret, out, wallRtMs, err := runCommand(cmd, gs, opts, hostname, uuidStr)
 
 	// default variables are for success
 	// we change them later if there was a failure

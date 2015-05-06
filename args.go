@@ -26,6 +26,7 @@ type binArgs struct {
 	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
 	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
 	Namespace string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
+	WarnAfter uint64 `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
 	Args      struct {
 		Command []string `positional-arg-name:"command [arguments]"`
 	} `positional-args:"yes" required:"true"`
