@@ -197,6 +197,49 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	)
 
 	//
+	// Test that DD events contain the cronner_group tag
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	time = 0
+	match = nil
+
+	t.h.cmd = exec.Command("/bin/echo", "somevalue")
+	t.h.opts.EventGroup = "testgroup"
+
+	_, r, time, err = handleCommand(t.h)
+	c.Assert(err, IsNil)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{35,44}:Cron testCmd starting on brainbox01|UUID: %v\n|k:%v|s:cronner|t:info|#source_type:cronner,cronner_label_name:testCmd,cronner_group:testgroup`, t.h.uuid, t.h.uuid),
+	)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+	c.Check(strconv.FormatFloat(time, 'f', -1, 64), Equals, match[0][1])
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(string(stat), Equals, "cronner.testCmd.exit_code:0|g")
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd,cronner_group:testgroup`, time/1000, t.h.uuid, t.h.uuid),
+	)
+
+	//
 	// Test that no output is given
 	//
 
@@ -207,6 +250,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	match = nil
 
 	t.h.cmd = exec.Command("/bin/echo", "something")
+	t.h.opts.EventGroup = ""
 
 	t.h.opts.LogFail = false
 	t.h.opts.Lock = true
@@ -303,13 +347,14 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	body := "B"
 	label := "urmom"
 	alertType := "info"
+	t.h.opts.EventGroup = "testing"
 
-	emitEvent(title, body, label, alertType, t.h.uuid, t.h.gs)
+	emitEvent(title, body, label, alertType, t.h)
 
 	event, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cronner|t:%v|#source_type:cronner,cronner_label_name:urmom", len(title), len(body), title, body, t.h.uuid, alertType)
+	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cronner|t:%v|#source_type:cronner,cronner_label_name:urmom,cronner_group:testing", len(title), len(body), title, body, t.h.uuid, alertType)
 	eventStr := string(event)
 
 	c.Check(eventStr, Equals, eventStub)
@@ -323,8 +368,9 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	title = "TE2"
 	label = "awwyiss"
 	alertType = "success"
+	t.h.opts.EventGroup = ""
 
-	emitEvent(title, body, label, alertType, t.h.uuid, t.h.gs)
+	emitEvent(title, body, label, alertType, t.h)
 
 	event, ok = <-t.out
 	c.Assert(ok, Equals, true)

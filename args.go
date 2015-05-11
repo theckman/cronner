@@ -15,19 +15,20 @@ import (
 
 // binArgs is for argument parsing
 type binArgs struct {
-	Cmd       string // this is not a command line flag, but rather parsed results
-	Label     string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
-	AllEvents bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
-	FailEvent bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
-	LogFail   bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
-	LogPath   string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
-	LogLevel  string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
-	Sensitive bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
-	Lock      bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
-	LockDir   string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
-	Namespace string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
-	WarnAfter uint64 `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
-	Args      struct {
+	Cmd        string // this is not a command line flag, but rather parsed results
+	Label      string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
+	Namespace  string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
+	EventGroup string `short:"G" long:"event-group" value-name:"<group>" description:"emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics"`
+	AllEvents  bool   `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
+	FailEvent  bool   `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
+	WarnAfter  uint64 `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
+	LogFail    bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
+	LogPath    string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -l/--log-on-fail output)"`
+	Sensitive  bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
+	Lock       bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
+	LockDir    string `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
+	LogLevel   string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
+	Args       struct {
 		Command []string `positional-arg-name:"command [arguments]"`
 	} `positional-args:"yes" required:"true"`
 }
