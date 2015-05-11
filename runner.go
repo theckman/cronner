@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ctdk/goas/v2/logger"
 	"github.com/nightlyone/lockfile"
+	"github.com/tideland/goas/v3/logger"
 )
 
 const intErrCode = 200
