@@ -6,10 +6,8 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net"
-	"os"
 	"path"
 	"testing"
 
@@ -22,11 +20,11 @@ import (
 func Test(t *testing.T) { TestingT(t) }
 
 type TestSuite struct {
-	gs   *godspeed.Godspeed
-	l    *net.UDPConn
-	ctrl chan int
-	out  chan []byte
-	a    *binArgs
+	l        *net.UDPConn
+	ctrl     chan int
+	out      chan []byte
+	lockFile string
+	h        *cmdHandler
 }
 
 var _ = Suite(&TestSuite{})
@@ -35,21 +33,30 @@ func (t *TestSuite) SetUpSuite(c *C) {
 	// suppress application logging
 	logger.SetLevel(logger.LevelFatal)
 
+	workingDir := c.MkDir()
+
+	t.h = &cmdHandler{
+		hostname: "brainbox01",
+		uuid:     uuid.New(),
+		opts: &binArgs{
+			Label:   "testCmd",
+			LogFail: true,
+			LogPath: workingDir,
+			LockDir: workingDir,
+		},
+	}
+
 	var err error
 
-	t.gs, err = godspeed.NewDefault()
+	t.h.gs, err = godspeed.NewDefault()
 	c.Assert(err, IsNil)
-	t.gs.SetNamespace("cronner")
+	t.h.gs.SetNamespace("cronner")
 
-	t.a = &binArgs{
-		Label:     "testCmd",
-		AllEvents: true,
-		LockDir:   c.MkDir(),
-	}
+	t.lockFile = path.Join(t.h.opts.LockDir, "cronner-testCmd.lock")
 }
 
 func (t *TestSuite) TearDownSuite(c *C) {
-	t.gs.Conn.Close()
+	t.h.gs.Conn.Close()
 }
 
 func (t *TestSuite) SetUpTest(c *C) {
@@ -63,71 +70,6 @@ func (t *TestSuite) SetUpTest(c *C) {
 func (t *TestSuite) TearDownTest(c *C) {
 	close(t.ctrl)
 	t.l.Close()
-}
-
-func (t *TestSuite) Test_emitEvent(c *C) {
-	title := "TE"
-	body := "B"
-	label := "urmom"
-	alertType := "info"
-	uuidStr := uuid.New()
-
-	emitEvent(title, body, label, alertType, uuidStr, t.gs)
-
-	event, ok := <-t.out
-	c.Assert(ok, Equals, true)
-
-	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:urmom", len(title), len(body), title, body, uuidStr, alertType)
-	eventStr := string(event)
-
-	c.Check(eventStr, Equals, eventStub)
-
-	//
-	// Test truncation
-	//
-
-	// generate a body that will be truncated
-	body = randString(4100)
-	title = "TE2"
-	label = "awwyiss"
-	alertType = "success"
-
-	emitEvent(title, body, label, alertType, uuidStr, t.gs)
-
-	event, ok = <-t.out
-	c.Assert(ok, Equals, true)
-
-	// simulate truncation and addition of the truncation messsage
-	truncatedBody := fmt.Sprintf("%v...\\n=== OUTPUT TRUNCATED ===\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
-
-	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:awwyiss", len(title), len(truncatedBody), title, truncatedBody, uuidStr, alertType)
-	eventStr = string(event)
-
-	c.Check(eventStr, Equals, eventStub)
-}
-
-func (t *TestSuite) Test_writeOutput(c *C) {
-	tmpDir, err := ioutil.TempDir("/tmp", "cronner_test")
-	c.Assert(err, IsNil)
-
-	defer os.RemoveAll(tmpDir)
-
-	filename := path.Join(tmpDir, fmt.Sprintf("outfile-%v.out", randString(8)))
-	out := []byte("this is a test!")
-
-	ok := writeOutput(filename, out, false)
-	c.Assert(ok, Equals, true)
-
-	stat, err := os.Stat(filename)
-	c.Assert(err, IsNil)
-	c.Check(stat.Mode(), Equals, os.FileMode(0400))
-
-	file, err := os.Open(filename)
-	c.Assert(err, IsNil)
-
-	contents, err := ioutil.ReadAll(file)
-	c.Assert(err, IsNil)
-	c.Check(string(out), Equals, string(contents))
 }
 
 //
