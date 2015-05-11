@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/PagerDuty/godspeed"
 	"github.com/ctdk/goas/v2/logger"
 	"github.com/nightlyone/lockfile"
 )
@@ -42,7 +41,7 @@ func execCmd(cmd *exec.Cmd, c chan<- error) {
 func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 	if hndlr.opts.AllEvents {
 		// emit a DD event to indicate we are starting the job
-		emitEvent(fmt.Sprintf("Cron %v starting on %v", hndlr.opts.Label, hndlr.hostname), fmt.Sprintf("UUID: %v\n", hndlr.uuid), hndlr.opts.Label, "info", hndlr.uuid, hndlr.gs)
+		emitEvent(fmt.Sprintf("Cron %v starting on %v", hndlr.opts.Label, hndlr.hostname), fmt.Sprintf("UUID: %v\n", hndlr.uuid), hndlr.opts.Label, "info", hndlr)
 	}
 
 	// set up the output buffer for the command
@@ -113,7 +112,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 					runSecs := time.Since(s).Seconds()
 					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", hndlr.opts.Label, int64(runSecs), hndlr.hostname)
 					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", hndlr.uuid, int64(runSecs))
-					emitEvent(title, body, hndlr.opts.Label, "warning", hndlr.uuid, hndlr.gs)
+					emitEvent(title, body, hndlr.opts.Label, "warning", hndlr)
 				}
 			}
 		}
@@ -207,7 +206,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 
 		body = fmt.Sprintf("%voutput: %v", body, cmdOutput)
 
-		emitEvent(title, body, hndlr.opts.Label, alertType, hndlr.uuid, hndlr.gs)
+		emitEvent(title, body, hndlr.opts.Label, alertType, hndlr)
 	}
 
 	// this code block is meant to be ran last
@@ -222,7 +221,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 }
 
 // emit a godspeed (dogstatsd) event
-func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspeed) {
+func emitEvent(title, body, label, alertType string, hndlr *cmdHandler) {
 	var buf bytes.Buffer
 
 	// if the event's body is bigger than MaxBody
@@ -246,13 +245,17 @@ func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspe
 		fields["alert_type"] = alertType
 	}
 
-	if len(uuidStr) > 0 {
-		fields["aggregation_key"] = uuidStr
+	if len(hndlr.uuid) > 0 {
+		fields["aggregation_key"] = hndlr.uuid
 	}
 
 	tags := []string{"source_type:cronner", fmt.Sprintf("cronner_label_name:%v", label)}
 
-	g.Event(title, body, fields, tags)
+	if len(hndlr.opts.EventGroup) > 0 {
+		tags = append(tags, fmt.Sprintf("cronner_group:%v", hndlr.opts.EventGroup))
+	}
+
+	hndlr.gs.Event(title, body, fields, tags)
 }
 
 // bailOut is for failures during logfile writing
