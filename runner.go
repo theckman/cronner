@@ -242,7 +242,7 @@ func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspe
 	}
 
 	fields := make(map[string]string)
-	fields["source_type_name"] = "cron"
+	fields["source_type_name"] = "cronner"
 
 	if len(alertType) > 0 {
 		fields["alert_type"] = alertType
@@ -252,7 +252,7 @@ func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspe
 		fields["aggregation_key"] = uuidStr
 	}
 
-	tags := []string{"source_type:cron", fmt.Sprintf("label_name:%v", label)}
+	tags := []string{"source_type:cronner", fmt.Sprintf("cronner_label_name:%v", label)}
 
 	g.Event(title, body, fields, tags)
 }
