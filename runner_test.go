@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -9,7 +10,6 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/codeskyblue/go-uuid"
 	"github.com/nightlyone/lockfile"
 	. "gopkg.in/check.v1"
 )
@@ -18,12 +18,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	//
 	// Test a command that finishes in 0.3 seconds
 	//
-	uuidStr := uuid.New()
-	host := "brainbox01"
-	cmd := exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
+	t.h.cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
-	// runButts(cmd *exec.Cmd, label string, save bool, gs *godspeed.Godspeed, lock bool, lockDir string)
-	retCode, r, time, err := runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, r, time, err := handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
 
@@ -74,16 +71,15 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	cmd = nil
 	time = 0
 	match = nil
 	timely = false
 	retCode = -512
 	timeRegex = nil
 
-	cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
+	t.h.cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, r, time, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
 
@@ -127,19 +123,18 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	cmd = nil
 	time = 0
 	match = nil
 	retCode = -512
 
 	switch runtime.GOOS {
 	case "linux":
-		cmd = exec.Command("/bin/false")
+		t.h.cmd = exec.Command("/bin/false")
 	case "darwin":
-		cmd = exec.Command("/usr/bin/false")
+		t.h.cmd = exec.Command("/usr/bin/false")
 	}
 
-	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, r, time, err = handleCommand(t.h)
 	c.Assert(err, Not(IsNil))
 	c.Check(retCode, Equals, 1)
 
@@ -158,28 +153,71 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(retFloat, Equals, float64(1))
 
 	//
+	// Test that DD events work
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	time = 0
+	match = nil
+	retCode = -512
+
+	t.h.cmd = exec.Command("/bin/echo", "somevalue")
+	t.h.opts.AllEvents = true
+
+	retCode, r, time, err = handleCommand(t.h)
+	c.Assert(err, IsNil)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{35,44}:Cron testCmd starting on brainbox01|UUID: %v\n|k:%v|s:cron|t:info|#source_type:cron,label_name:testCmd`, t.h.uuid, t.h.uuid),
+	)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 2)
+	c.Check(strconv.FormatFloat(time, 'f', -1, 64), Equals, match[0][1])
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(string(stat), Equals, "cronner.testCmd.exit_code:0|g")
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cron|t:success|#source_type:cron,label_name:testCmd`, time/1000, t.h.uuid, t.h.uuid),
+	)
+
+	//
 	// Test that no output is given
 	//
 
 	// Reset variables used
 	r = nil
 	err = nil
-	cmd = nil
 	time = 0
 	match = nil
-	retCode = -300
 
-	cmd = exec.Command("/bin/echo", "something")
+	t.h.cmd = exec.Command("/bin/echo", "something")
 
-	t.a.AllEvents = false
-	t.a.Lock = true
+	t.h.opts.LogFail = false
+	t.h.opts.Lock = true
+	t.h.opts.AllEvents = false
 
-	lf, err := lockfile.New(path.Join(t.a.LockDir, "cronner-testCmd.lock"))
+	lf, err := lockfile.New(t.lockFile)
 	c.Assert(err, IsNil)
 
-	retCode, r, _, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, r, _, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
-	c.Assert(retCode, Equals, 0)
+	c.Check(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
 
 	// assert that the lockfile was removed
@@ -204,9 +242,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Assert(err, IsNil)
 	defer lf.Unlock()
 
-	retCode, _, _, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, _, _, err = handleCommand(t.h)
 	c.Assert(err, Not(IsNil))
-	c.Check(err.Error(), Equals, "Locked by other process")
+	c.Check(err.Error(), Equals, fmt.Sprintf("failed to obtain lock on '%v': Locked by other process", t.lockFile))
 	c.Check(retCode, Equals, 200)
 
 	//
@@ -218,12 +256,12 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	err = nil
 	retCode = -512
 
-	t.a.Lock = false
-	t.a.WarnAfter = 2
+	t.h.opts.Lock = false
+	t.h.opts.WarnAfter = 2
 
-	cmd = exec.Command("/bin/sleep", "3")
+	t.h.cmd = exec.Command("/bin/sleep", "3")
 
-	retCode, r, time, err = runCommand(cmd, t.gs, t.a, host, uuidStr)
+	retCode, r, time, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
@@ -234,7 +272,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{56,65}:Cron testCmd still running after 2 seconds on brainbox01|UUID: %v\nrunning for 2 seconds|k:%v|s:cron|t:warning|#source_type:cron,label_name:testCmd`, uuidStr, uuidStr),
+		fmt.Sprintf(`_e{56,65}:Cron testCmd still running after 2 seconds on brainbox01|UUID: %v\nrunning for 2 seconds|k:%v|s:cron|t:warning|#source_type:cron,label_name:testCmd`, t.h.uuid, t.h.uuid),
 	)
 
 	stat, ok = <-t.out
@@ -258,4 +296,68 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Check(retFloat, Equals, float64(0))
+}
+
+func (t *TestSuite) Test_emitEvent(c *C) {
+	title := "TE"
+	body := "B"
+	label := "urmom"
+	alertType := "info"
+
+	emitEvent(title, body, label, alertType, t.h.uuid, t.h.gs)
+
+	event, ok := <-t.out
+	c.Assert(ok, Equals, true)
+
+	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:urmom", len(title), len(body), title, body, t.h.uuid, alertType)
+	eventStr := string(event)
+
+	c.Check(eventStr, Equals, eventStub)
+
+	//
+	// Test truncation
+	//
+
+	// generate a body that will be truncated
+	body = randString(4100)
+	title = "TE2"
+	label = "awwyiss"
+	alertType = "success"
+
+	emitEvent(title, body, label, alertType, t.h.uuid, t.h.gs)
+
+	event, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	// simulate truncation and addition of the truncation messsage
+	truncatedBody := fmt.Sprintf("%v...\\n=== OUTPUT TRUNCATED ===\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
+
+	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:awwyiss", len(title), len(truncatedBody), title, truncatedBody, t.h.uuid, alertType)
+	eventStr = string(event)
+
+	c.Check(eventStr, Equals, eventStub)
+}
+
+func (t *TestSuite) Test_writeOutput(c *C) {
+	tmpDir, err := ioutil.TempDir("/tmp", "cronner_test")
+	c.Assert(err, IsNil)
+
+	defer os.RemoveAll(tmpDir)
+
+	filename := path.Join(tmpDir, fmt.Sprintf("outfile-%v.out", randString(8)))
+	out := []byte("this is a test!")
+
+	ok := writeOutput(filename, out, false)
+	c.Assert(ok, Equals, true)
+
+	stat, err := os.Stat(filename)
+	c.Assert(err, IsNil)
+	c.Check(stat.Mode(), Equals, os.FileMode(0400))
+
+	file, err := os.Open(filename)
+	c.Assert(err, IsNil)
+
+	contents, err := ioutil.ReadAll(file)
+	c.Assert(err, IsNil)
+	c.Check(string(out), Equals, string(contents))
 }

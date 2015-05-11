@@ -3,17 +3,22 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"syscall"
 	"time"
 
 	"github.com/PagerDuty/godspeed"
+	"github.com/ctdk/goas/v2/logger"
 	"github.com/nightlyone/lockfile"
-	"github.com/tideland/goas/v3/logger"
 )
 
 const intErrCode = 200
+
+// MaxBody is the maximum length of a event body
+const MaxBody = 4096
 
 // execCmd is a function to run a command and send
 // the error value back through a channel
@@ -22,7 +27,7 @@ func execCmd(cmd *exec.Cmd, c chan<- error) {
 	close(c)
 }
 
-// runCommand is a function that handles the entire process of running a command:
+// handleCommand is a function that handles the entire process of running a command:
 //
 // * file-based locking for the command
 // * actually running the command
@@ -33,39 +38,44 @@ func execCmd(cmd *exec.Cmd, c chan<- error) {
 // it returns the following:
 //
 // * (int) return code
-// * ([]byte) command output
 // * (float64) run time
-// * (error) WISOTT
-func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidStr string) (int, []byte, float64, error) {
+func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
+	// func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidStr string) (int, []byte, float64, error) {
+
+	if hndlr.opts.AllEvents {
+		// emit a DD event to indicate we are starting the job
+		emitEvent(fmt.Sprintf("Cron %v starting on %v", hndlr.opts.Label, hndlr.hostname), fmt.Sprintf("UUID: %v\n", hndlr.uuid), hndlr.opts.Label, "info", hndlr.uuid, hndlr.gs)
+	}
+
 	// set up the output buffer for the command
 	var b bytes.Buffer
 
 	// comnbine stdout and stderr to the same buffer
 	// if we actually plan on using the command output
 	// otherwise, /dev/null
-	if opts.AllEvents || opts.FailEvent || opts.LogFail {
-		cmd.Stdout = &b
-		cmd.Stderr = &b
+	if hndlr.opts.AllEvents || hndlr.opts.FailEvent || hndlr.opts.LogFail {
+		hndlr.cmd.Stdout = &b
+		hndlr.cmd.Stderr = &b
 	} else {
-		cmd.Stdout = nil
-		cmd.Stderr = nil
+		hndlr.cmd.Stdout = nil
+		hndlr.cmd.Stderr = nil
 	}
 
 	// build a new lockFile
-	lockFile, err := lockfile.New(path.Join(opts.LockDir, fmt.Sprintf("cronner-%v.lock", opts.Label)))
+	lockFile, err := lockfile.New(path.Join(hndlr.opts.LockDir, fmt.Sprintf("cronner-%v.lock", hndlr.opts.Label)))
 
 	// make sure we weren't given a bad path
 	// and only care if we are doing locking
-	if err != nil && opts.Lock {
-		logger.Criticalf("failure initializing lockfile: %v", err)
-		return intErrCode, nil, 0, err
+	if err != nil && hndlr.opts.Lock {
+		retErr := fmt.Errorf("failure initializing lockfile: %v", err)
+		return intErrCode, nil, -1, retErr
 	}
 
 	// grab the lock
-	if opts.Lock {
+	if hndlr.opts.Lock {
 		if err := lockFile.TryLock(); err != nil {
-			logger.Criticalf("failed to obtain lock on '%v': %v", lockFile, err)
-			return intErrCode, nil, 0, err
+			retErr := fmt.Errorf("failed to obtain lock on '%v': %v", lockFile, err)
+			return intErrCode, nil, -1, retErr
 		}
 	}
 
@@ -76,16 +86,16 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidS
 	// use the ticker to send out warning events
 	//
 	// otherwise, KISS
-	if opts.WarnAfter > 0 {
+	if hndlr.opts.WarnAfter > 0 {
 		// use time.Tick() instead of time.NewTicker() because
 		// we don't ever need to run Stop() on this ticker as cronner
 		// won't live much beyond the command returning
-		tickChan := time.Tick(time.Second * time.Duration(opts.WarnAfter))
+		tickChan := time.Tick(time.Second * time.Duration(hndlr.opts.WarnAfter))
 
 		// get the current (start) time since the UTC epoch
 		// and run the command
 		s = time.Now().UTC()
-		go execCmd(cmd, ch)
+		go execCmd(hndlr.cmd, ch)
 
 		// this is an open loop to wait for either the command to return
 		// or time to be sent over the ticker channel
@@ -103,9 +113,9 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidS
 			case _, ok := <-tickChan:
 				if ok {
 					runSecs := time.Since(s).Seconds()
-					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", opts.Label, int64(runSecs), host)
-					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", uuidStr, int64(runSecs))
-					emitEvent(title, body, opts.Label, "warning", uuidStr, gs)
+					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", hndlr.opts.Label, int64(runSecs), hndlr.hostname)
+					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", hndlr.uuid, int64(runSecs))
+					emitEvent(title, body, hndlr.opts.Label, "warning", hndlr.uuid, hndlr.gs)
 				}
 			}
 		}
@@ -113,7 +123,7 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidS
 		// get the current (start) time since the UTC epoch
 		// and run the command
 		s = time.Now().UTC()
-		go execCmd(cmd, ch)
+		go execCmd(hndlr.cmd, ch)
 		err = <-ch
 	}
 
@@ -124,7 +134,7 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidS
 	//
 	// However, based on our usage I don't think we care about it
 	// being off by a few milliseconds.
-	t := time.Since(s).Seconds() * 1000
+	wallRtMs := time.Since(s).Seconds() * 1000
 
 	// calculate the return code of the command
 	// default to return code 0: success
@@ -143,21 +153,153 @@ func runCommand(cmd *exec.Cmd, gs *godspeed.Godspeed, opts *binArgs, host, uuidS
 	}
 
 	// unlock
-	if opts.Lock {
+	if hndlr.opts.Lock {
 		if lockErr := lockFile.Unlock(); lockErr != nil {
-			logger.Criticalf("failed to unlock: '%v': %v", lockFile, lockErr)
-
 			// if the command didn't fail, but unlocking did
 			// replace the command error with the unlock error
+			// otherwise just print the error
+			retErr := fmt.Errorf("failed to unlock: '%v': %v", lockFile, lockErr)
 			if err == nil {
-				err = lockErr
+				err = retErr
+			} else {
+				logger.Errorf(retErr.Error())
 			}
 		}
 	}
 
 	// emit the metric for how long it took us and return code
-	gs.Timing(fmt.Sprintf("%v.time", opts.Label), t, nil)
-	gs.Gauge(fmt.Sprintf("%v.exit_code", opts.Label), float64(ret), nil)
+	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), wallRtMs, nil)
+	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), nil)
 
-	return ret, b.Bytes(), t, err
+	out := b.Bytes()
+
+	// default variables are for success
+	// we change them later if there was a failure
+	msg := "succeeded"
+	alertType := "success"
+
+	// if the command failed change the state variables to their failure values
+	if err != nil {
+		msg = "failed"
+		alertType = "error"
+	}
+
+	if hndlr.opts.AllEvents || (hndlr.opts.FailEvent && alertType == "error") {
+		// build the pieces of the completion event
+		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", hndlr.opts.Label, msg, wallRtMs/1000, hndlr.hostname)
+
+		body := fmt.Sprintf("UUID: %v\nexit code: %d\n", hndlr.uuid, ret)
+		if err != nil {
+			er := regexp.MustCompile("^exit status ([-]?\\d)")
+
+			// do not show the 'more:' line, if the line is just telling us
+			// what the exit code is
+			if !er.MatchString(err.Error()) {
+				body = fmt.Sprintf("%vmore: %v\n", body, err.Error())
+			}
+		}
+
+		var cmdOutput string
+
+		if len(out) > 0 {
+			cmdOutput = string(out)
+		} else {
+			cmdOutput = "(none)"
+		}
+
+		body = fmt.Sprintf("%voutput: %v", body, cmdOutput)
+
+		emitEvent(title, body, hndlr.opts.Label, alertType, hndlr.uuid, hndlr.gs)
+	}
+
+	// this code block is meant to be ran last
+	if alertType == "error" && hndlr.opts.LogFail {
+		filename := path.Join(hndlr.opts.LogPath, fmt.Sprintf("%v-%v.out", hndlr.opts.Label, hndlr.uuid))
+		if !writeOutput(filename, out, hndlr.opts.Sensitive) {
+			os.Exit(1)
+		}
+	}
+
+	return ret, out, wallRtMs, err
+}
+
+// emit a godspeed (dogstatsd) event
+func emitEvent(title, body, label, alertType, uuidStr string, g *godspeed.Godspeed) {
+	var buf bytes.Buffer
+
+	// if the event's body is bigger than MaxBody
+	if len(body) > MaxBody {
+		// push the first MaxBody/2 bytes in to the buffer
+		buf.WriteString(body[0 : MaxBody/2])
+
+		// add indication of truncated output to the buffer
+		buf.WriteString("...\n=== OUTPUT TRUNCATED ===\n")
+
+		// add the last 1024 bytes to the buffer
+		buf.WriteString(body[len(body)-((MaxBody/2)+1) : len(body)-1])
+
+		body = string(buf.Bytes())
+	}
+
+	fields := make(map[string]string)
+	fields["source_type_name"] = "cron"
+
+	if len(alertType) > 0 {
+		fields["alert_type"] = alertType
+	}
+
+	if len(uuidStr) > 0 {
+		fields["aggregation_key"] = uuidStr
+	}
+
+	tags := []string{"source_type:cron", fmt.Sprintf("label_name:%v", label)}
+
+	g.Event(title, body, fields, tags)
+}
+
+// bailOut is for failures during logfile writing
+func bailOut(out []byte, sensitive bool) bool {
+	if !sensitive {
+		fmt.Fprintf(os.Stderr, "here is the output in hopes you are looking here:\n\n%v", string(out))
+		os.Exit(1)
+	}
+	return false
+}
+
+// writeOutput saves the output (out) to the file specified
+func writeOutput(filename string, out []byte, sensitive bool) bool {
+	// check to see whehter or not the output file already exists
+	// this should really never happen, but just in case it does...
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "flagrant error: output file '%v' already exists\n", filename)
+		return bailOut(out, sensitive)
+	}
+
+	outFile, err := os.Create(filename)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error opening file to save command output: %v\n", err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	defer outFile.Close()
+
+	if err = outFile.Chmod(0400); err != nil {
+		fmt.Fprintf(os.Stderr, "error setting permissions (0400) on file '%v': %v\n", filename, err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	nwrt, err := outFile.Write(out)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error writing to file '%v': %v\n", filename, err.Error())
+		return bailOut(out, sensitive)
+	}
+
+	if nwrt != len(out) {
+		fmt.Fprintf(os.Stderr, "error writing to file '%v': number of bytes written not equal to output (total: %d, written: %d)\n", filename, len(out), nwrt)
+		return bailOut(out, sensitive)
+	}
+
+	return true
 }
