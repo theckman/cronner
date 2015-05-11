@@ -174,7 +174,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{35,44}:Cron testCmd starting on brainbox01|UUID: %v\n|k:%v|s:cron|t:info|#source_type:cron,label_name:testCmd`, t.h.uuid, t.h.uuid),
+		fmt.Sprintf(`_e{35,44}:Cron testCmd starting on brainbox01|UUID: %v\n|k:%v|s:cronner|t:info|#source_type:cronner,cronner_label_name:testCmd`, t.h.uuid, t.h.uuid),
 	)
 
 	stat, ok = <-t.out
@@ -193,7 +193,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cron|t:success|#source_type:cron,label_name:testCmd`, time/1000, t.h.uuid, t.h.uuid),
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd`, time/1000, t.h.uuid, t.h.uuid),
 	)
 
 	//
@@ -272,7 +272,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{56,65}:Cron testCmd still running after 2 seconds on brainbox01|UUID: %v\nrunning for 2 seconds|k:%v|s:cron|t:warning|#source_type:cron,label_name:testCmd`, t.h.uuid, t.h.uuid),
+		fmt.Sprintf(`_e{56,65}:Cron testCmd still running after 2 seconds on brainbox01|UUID: %v\nrunning for 2 seconds|k:%v|s:cronner|t:warning|#source_type:cronner,cronner_label_name:testCmd`, t.h.uuid, t.h.uuid),
 	)
 
 	stat, ok = <-t.out
@@ -309,7 +309,7 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	event, ok := <-t.out
 	c.Assert(ok, Equals, true)
 
-	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:urmom", len(title), len(body), title, body, t.h.uuid, alertType)
+	eventStub := fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cronner|t:%v|#source_type:cronner,cronner_label_name:urmom", len(title), len(body), title, body, t.h.uuid, alertType)
 	eventStr := string(event)
 
 	c.Check(eventStr, Equals, eventStub)
@@ -332,7 +332,7 @@ func (t *TestSuite) Test_emitEvent(c *C) {
 	// simulate truncation and addition of the truncation messsage
 	truncatedBody := fmt.Sprintf("%v...\\n=== OUTPUT TRUNCATED ===\\n%v", body[0:MaxBody/2], body[len(body)-((MaxBody/2)+1):len(body)-1])
 
-	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cron|t:%v|#source_type:cron,label_name:awwyiss", len(title), len(truncatedBody), title, truncatedBody, t.h.uuid, alertType)
+	eventStub = fmt.Sprintf("_e{%d,%d}:%v|%v|k:%v|s:cronner|t:%v|#source_type:cronner,cronner_label_name:awwyiss", len(title), len(truncatedBody), title, truncatedBody, t.h.uuid, alertType)
 	eventStr = string(event)
 
 	c.Check(eventStr, Equals, eventStub)
