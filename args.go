@@ -22,7 +22,7 @@ type binArgs struct {
 	LogFail    bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	EventGroup string `short:"G" long:"event-group" value-name:"<group>" description:"emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics"`
 	Lock       bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
-	Label      string `short:"l" long:"label" default:"" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
+	Label      string `short:"l" long:"label" required:"true" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
 	LogPath    string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -F/--log-fail output)"`
 	LogLevel   string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Namespace  string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
