@@ -1,12 +1,19 @@
 # cronner
-`cronner` is a simple tool for some basic stats gathering/monitoring around jobs being executed on hosts. As with all tools, it's meant to improve the experience and not be a magic bullet.
+`cronner` is a command line utility to that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to ran, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for very simple, and dumb, job semaphore.
 
-`cronner` supports emitting the command run time, and return code, as statsd metrics. In addition, you can have DogStatsd event emissions by enabling it on the command line.
+The utility also supports emitting [DogStatsD Events](http://docs.datadoghq.com/guides/dogstatsd/#events) under the following occasions:
 
-When emitting a finished event, `cronner` provides the combined stdout and stderr output in the body. If the output is too long, it is truncated.
+* job start and job finish
+* job finish if the job failed
+* if the job is taking too long to finish running
+
+If your statsd agent isn't DogStatsD-compliant, I'm not sure what the behavior will be if you an emit an event to it.
+
+For the finish DogStatsD event, the return code and output of the command are provided in the event body. If the output is too long, it is truncated. This output can optionally be saved to disk only if the job fails for later inspection.
 
 # Usage
-Help output:
+### Help Output
+
 ```
 Usage:
   cronner [OPTIONS] command [arguments]...
@@ -32,33 +39,38 @@ Arguments:
   command [arguments]
 ```
 
-Running a command:
+### Running A Command
+The label (`-l`, `--label`) flag is required.
+
+To run the command `/bin/sleep 10` and emit the stats as `cronner.sleeptyime.time` and `cronner.sleepytime.exit_code` you would run:
+
 ```
 $ cronner -l sleepytime -- /bin/sleep 10
 ```
 
-Listening to the statsd emissions looks like this:
+If you were to have a UDP listener on port 8125 on localhost, the statsd emissions would look something like this:
 
 ```
-pagerduty.cron.sleepytime.time:10005.834649|ms
-pagerduty.cron.sleepytime.exit_code:0|g
+cronner.sleepytime.time:10005.834649|ms
+cronner.sleepytime.exit_code:0|g
 ```
 
 It emits a timing metric for how long it took for the command to run, as well as the command's exit code.
 
-Running a command and emitting a start and end event:
+### Running A Command with a DogStatsD Event
+If you want to run `/bin/sleep 5` as `sleepytime2` and emit a DogStatsD for when the job starts and finishes:
 
 ```
 $ cronner -e -l sleepytime2 -- /bin/sleep 5
 ```
 
-And the statsd interceptions look like this:
+The UDP datagrams emitted would then look like this:
 
 ```
-_e{35,12}:Cron sleepytime2 starting on rinzler|job starting|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:info
-pagerduty.cron.sleepytime2.time:5005.649979|ms
-pagerduty.cron.sleepytime2.exit_code:0|g
-_e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cron|t:success
+_e{35,12}:Cron sleepytime2 starting on rinzler|job starting|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cronner|t:info
+cronner.sleepytime2.time:5005.649979|ms
+cronner.sleepytime2.exit_code:0|g
+_e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cronner|t:success
 ```
 
 # Development
@@ -79,7 +91,7 @@ $ go build
 
 ## Without gpm
 With the configuration above, you won't be able to import any packages within the `cronner` repo from within the codebase.
-In other words, if a cronner file depends on a packge in a subdirectory, you wouldn't be able to locate it within the import path.
+In other words, if a cronner file depends on a package in a subdirectory, you wouldn't be able to locate it within the import path.
 To avoid this, you can skip using the gpm approach and use a more manual approach.
 
 * set up your Go build environment
