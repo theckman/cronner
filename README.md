@@ -11,7 +11,11 @@ If your statsd agent isn't DogStatsD-compliant, I'm not sure what the behavior w
 
 For the finish DogStatsD event, the return code and output of the command are provided in the event body. If the output is too long, it is truncated. This output can optionally be saved to disk only if the job fails for later inspection.
 
-# Usage
+## License
+Cronner is released under the BSD 3-Clause License. See the `LICENSE` file for
+the full contents of the license.
+
+## Usage
 ### Help Output
 
 ```
@@ -73,8 +77,12 @@ cronner.sleepytime2.exit_code:0|g
 _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cronner|t:success
 ```
 
-# Development
-## Using gpm
+## Contributors
+* Tim Heckman
+* Thomas Dziedzic
+
+## Development
+### Using gpm
 ```
 $ brew install gpm
 
@@ -89,7 +97,7 @@ $ gpm
 $ go build
 ```
 
-## Without gpm
+### Without gpm
 With the configuration above, you won't be able to import any packages within the `cronner` repo from within the codebase.
 In other words, if a cronner file depends on a package in a subdirectory, you wouldn't be able to locate it within the import path.
 To avoid this, you can skip using the gpm approach and use a more manual approach.
