@@ -16,3 +16,12 @@ before_deploy:
 - mkdir $PD_BUILD_NAME
 - go build -o $PD_BUILD_NAME/$PD_PROJECT
 - tar -czf build/$PD_BUILD_NAME.tar.gz $PD_BUILD_NAME/
+deploy:
+  provider: releases
+  skip_cleanup: true
+  api_key:
+    secure: CKG1/ONjH4CT1SGBQE3Eqaanwa4be1zioSplpoy2NxLVbhakItCVbJEBFN+l1HRDE1dx0RXLhEM0vvhVnh1ymHskcAEfSQ0i0RBXyG5sXlSJZXKF1mWE1Sw3WgMXxilBsGq3KN4qcCHjF4LA4ViyXDxgTbxxbpb/nptUA+d86S8=
+  file: build/$PD_BUILD_NAME.tar.gz
+  on:
+    repo: PagerDuty/cronner
+    tags: true

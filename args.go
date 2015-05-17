@@ -23,11 +23,12 @@ type binArgs struct {
 	LogFail    bool   `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	EventGroup string `short:"G" long:"event-group" value-name:"<group>" description:"emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics"`
 	Lock       bool   `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
-	Label      string `short:"l" long:"label" required:"true" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
+	Label      string `short:"l" long:"label" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
 	LogPath    string `long:"log-path" default:"/var/log/cronner/" description:"where to place the log files for command output (path for -F/--log-fail output)"`
 	LogLevel   string `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Namespace  string `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
 	Sensitive  bool   `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
+	Version    bool   `short:"V" long:"version" description:"print the version string and exit"`
 	WarnAfter  uint64 `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
 	Args       struct {
 		Command []string `positional-arg-name:"command [arguments]"`
@@ -49,9 +50,14 @@ func (a *binArgs) parse() error {
 			logger.Errorf("error: %v\n", err)
 			os.Exit(1)
 		} else {
-			fmt.Printf("%v", err)
+			fmt.Print(err.Error())
 			os.Exit(0)
 		}
+	}
+
+	if a.Version {
+		fmt.Printf("cronner v%s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version)
+		os.Exit(0)
 	}
 
 	r := regexp.MustCompile("^[a-zA-Z0-9_\\.]+$")
