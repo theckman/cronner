@@ -1,9 +1,6 @@
 language: go
 go:
 - 1.4.2
-branches:
-  only:
-  - master
 addons:
   apt:
     packages:
