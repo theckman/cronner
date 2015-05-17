@@ -16,9 +16,9 @@ before_deploy:
 deploy:
   provider: releases
   skip_cleanup: true
-  api_key:
-    secure: CKG1/ONjH4CT1SGBQE3Eqaanwa4be1zioSplpoy2NxLVbhakItCVbJEBFN+l1HRDE1dx0RXLhEM0vvhVnh1ymHskcAEfSQ0i0RBXyG5sXlSJZXKF1mWE1Sw3WgMXxilBsGq3KN4qcCHjF4LA4ViyXDxgTbxxbpb/nptUA+d86S8=
   file: build/$PD_BUILD_NAME.tar.gz
   on:
     repo: PagerDuty/cronner
     tags: true
+  api_key:
+    secure: HNF+SPbS4QVhXG7+lf4ysphXHOJ04zy1yZrmAFWAprFbbDo6IlVwfdGXRB61d1yqG4O4BR3VhhbVmgqvaTMbXbDf3TycRC8Xt84c6BPkAecnDYMb/NNDdOzDagad8FJiWy13JwBJYzMF4B20tzbQcRtQSqxsjMqeyMuQDwjtWeU=
