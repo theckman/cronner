@@ -15,7 +15,8 @@ import (
 	"github.com/tideland/goas/v3/logger"
 )
 
-const Version = "0.1.2"
+// Version is the program's version string
+const Version = "0.1.3"
 
 type cmdHandler struct {
 	gs       *godspeed.Godspeed

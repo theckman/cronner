@@ -6,7 +6,7 @@ addons:
     packages:
     - time
 sudo: false
-env: 'PD_PROJECT=cronner GOARCH=amd64 GOOS=linux PD_BUILD_NAME="$PD_PROJECT-$GOOS-$GOARCH-tbn$TRAVIS_BUILD_NUMBER-${TRAVIS_COMMIT:0:8}"'
+env: 'PD_PROJECT=cronner GOARCH=amd64 GOOS=linux PD_BUILD_NAME="$PD_PROJECT-$GOOS-$GOARCH-$TRAVIS_TAG"'
 script: go test -v ./... -check.vv
 before_deploy:
 - mkdir build
@@ -16,9 +16,9 @@ before_deploy:
 deploy:
   provider: releases
   skip_cleanup: true
+  api_key:
+    secure: Rxly2mwatA2tHz9MscZR/YdU7TR3S0kUeQv1DmKp7x0zlcPMcDtD9hQcRrv5W3JL3FsxUn9hoLQRmYPxgKmHBRBdFjn9s3tqx8wfnWkcaVHvwz3dxYEJQxlQVgl19gGFlL9uXfOt/PR2pMpFxSLdudwyBvCR9cXMWr0Y4MRHfuZtrfb0q1EGaJuhXb6hcp1STrKUgEUiv7fDcQOS6KIiPdQey6hELdidWTCIHgo2C6w+r3z2PG2y7w5s7S4vSFicNSsyV/wRPv3Eelcv2YSddcGrltb+Pd/weKDTfvLLzA3jMbFpqI/XSnr/szrXtrYomQE/9pdBwfgHD9gZ7tcRrTOVVx5bIx7+CbZ4CJdIQtHKdqjFHmXoAjCUJYnSfLMy9c9dZ42RGrmw7P1z3hB5wwLRrd3PXXlmV1YfEJt5deugXHxHxC/a5rEMNEJxPhHL4yaoxL8gO1v02o21C4DCVDalgJ18M2YjX2NCujoAfYls5ib/QCeoZAxHz/zVI80SWvqdSC/vqm4+pbzdw6JriRcUvdFb6owU1mQjloO4fGCJkT3Dhqaa916UKuqjB2ogg9SQpyPvx8VX6q7yCOzV0sk4WZZJfImiys+ifZaJoecVth8jAISdOkIJIm9a9oPy6IOskYQKP51sjhqvS/G5wmxl1Ips1Ik42iUsXpI+7Us=
   file: build/$PD_BUILD_NAME.tar.gz
   on:
     repo: PagerDuty/cronner
     tags: true
-  api_key:
-    secure: HNF+SPbS4QVhXG7+lf4ysphXHOJ04zy1yZrmAFWAprFbbDo6IlVwfdGXRB61d1yqG4O4BR3VhhbVmgqvaTMbXbDf3TycRC8Xt84c6BPkAecnDYMb/NNDdOzDagad8FJiWy13JwBJYzMF4B20tzbQcRtQSqxsjMqeyMuQDwjtWeU=
