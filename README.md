@@ -36,6 +36,7 @@ Application Options:
   -L, --log-level=              set the level at which to log at [none|error|info|debug] (error)
   -N, --namespace=              namespace for statsd emissions, value is prepended to metric name by statsd client (cronner)
   -s, --sensitive               specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
+  -V, --version                 print the version string and exit
   -w, --warn-after=N            emit a warning event every N seconds if the job hasn't finished, set to 0 to disable (0)
 
 Help Options:
