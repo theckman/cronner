@@ -55,6 +55,8 @@ To run the command `/bin/sleep 10` and emit the stats as `cronner.sleeptyime.tim
 $ cronner -l sleepytime -- /bin/sleep 10
 ```
 
+To note, `--` in the command line arguments tells cronner to stop parsing CLi flags. It then grabs the rest of the arguments as the command to execute.
+
 If you were to have a UDP listener on port 8125 on localhost, the statsd emissions would look something like this:
 
 ```

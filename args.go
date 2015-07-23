@@ -31,7 +31,7 @@ type binArgs struct {
 	Version    bool   `short:"V" long:"version" description:"print the version string and exit"`
 	WarnAfter  uint64 `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
 	Args       struct {
-		Command []string `positional-arg-name:"command [arguments]"`
+		Command []string `positional-arg-name:"-- command [arguments]"`
 	} `positional-args:"yes" required:"true"`
 }
 
