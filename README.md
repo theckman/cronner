@@ -22,7 +22,7 @@ the full contents of the license.
 
 ```
 Usage:
-  cronner [OPTIONS] command [arguments]...
+  cronner [OPTIONS] -- command [arguments]...
 
 Application Options:
   -d, --lock-dir=               the directory where lock files will be placed (/var/lock)
