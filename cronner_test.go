@@ -11,6 +11,7 @@ import (
 	"net"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
@@ -71,6 +72,8 @@ func (t *TestSuite) SetUpTest(c *C) {
 func (t *TestSuite) TearDownTest(c *C) {
 	close(t.ctrl)
 	t.l.Close()
+
+	time.Sleep(time.Millisecond * 10)
 }
 
 //
