@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"github.com/jessevdk/go-flags"
@@ -56,7 +57,7 @@ func (a *binArgs) parse() error {
 	}
 
 	if a.Version {
-		fmt.Printf("cronner v%s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version)
+		fmt.Printf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
 		os.Exit(0)
 	}
 
