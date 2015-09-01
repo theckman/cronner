@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nightlyone/lockfile"
+	"github.com/theckman/go-flock"
 	"github.com/tideland/goas/v3/logger"
 )
 
@@ -63,20 +63,42 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 	}
 
 	// build a new lockFile
-	lockFile, err := lockfile.New(path.Join(hndlr.opts.LockDir, fmt.Sprintf("cronner-%v.lock", hndlr.opts.Label)))
+	lockFile := flock.NewFlock(path.Join(hndlr.opts.LockDir, fmt.Sprintf("cronner-%v.lock", hndlr.opts.Label)))
 
-	// make sure we weren't given a bad path
-	// and only care if we are doing locking
-	if err != nil && hndlr.opts.Lock {
-		retErr := fmt.Errorf("failure initializing lockfile: %v", err)
-		return intErrCode, nil, -1, retErr
-	}
+	var err error
 
 	// grab the lock
 	if hndlr.opts.Lock {
-		if err := lockFile.TryLock(); err != nil {
+		locked, err := lockFile.TryLock()
+
+		if err != nil {
 			retErr := fmt.Errorf("failed to obtain lock on '%v': %v", lockFile, err)
 			return intErrCode, nil, -1, retErr
+		}
+
+		if !locked && hndlr.opts.WaitSeconds == 0 {
+			retErr := fmt.Errorf("failed to obtain lock on '%v': locked by another process", lockFile)
+			return intErrCode, nil, -1, retErr
+		} else if !locked && hndlr.opts.WaitSeconds > 0 {
+			tick := time.NewTicker(time.Second * time.Duration(hndlr.opts.WaitSeconds))
+
+		GotLock:
+			for {
+				select {
+				case _ = <-tick.C:
+					retErr := fmt.Errorf("timeout exceeded (%ds) waiting for the file lock", hndlr.opts.WaitSeconds)
+					return intErrCode, nil, -1, retErr
+				default:
+					locked, err = lockFile.TryLock()
+
+					if !locked || err != nil {
+						time.Sleep(time.Second * 1)
+						continue
+					}
+
+					break GotLock
+				}
+			}
 		}
 	}
 
