@@ -13,18 +13,20 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"time"
 
-	"github.com/nightlyone/lockfile"
+	"github.com/theckman/go-flock"
+
 	. "gopkg.in/check.v1"
 )
 
-func (t *TestSuite) Test_runCommand(c *C) {
+func (t *TestSuite) Test_handleCommand(c *C) {
 	//
 	// Test a command that finishes in 0.3 seconds
 	//
 	t.h.cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "0.3")
 
-	retCode, r, time, err := handleCommand(t.h)
+	retCode, r, runTime, err := handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
 
@@ -38,7 +40,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	statFloat, err := strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Check(statFloat, Equals, time)
+	c.Check(statFloat, Equals, runTime)
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -57,7 +59,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// assume the command run time will be within 20ms of correct,
 	// note sure how tight we can make this window without incurring
 	// false-failures.
-	if time > 300 && time < 320 {
+	if runTime > 300 && runTime < 320 {
 		timely = true
 	}
 	c.Assert(timely, Equals, true)
@@ -75,7 +77,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	time = 0
+	runTime = 0
 	match = nil
 	timely = false
 	retCode = -512
@@ -83,7 +85,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	t.h.cmd = exec.Command("/usr/bin/time", "-p", "/bin/sleep", "1")
 
-	retCode, r, time, err = handleCommand(t.h)
+	retCode, r, runTime, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
 
@@ -96,9 +98,9 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	statFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Check(statFloat, Equals, time)
+	c.Check(statFloat, Equals, runTime)
 
-	if time > 1000 && time < 1020 {
+	if runTime > 1000 && runTime < 1020 {
 		timely = true
 	}
 	c.Check(timely, Equals, true)
@@ -127,7 +129,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	time = 0
+	runTime = 0
 	match = nil
 	retCode = -512
 
@@ -138,7 +140,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 		t.h.cmd = exec.Command("/usr/bin/false")
 	}
 
-	retCode, r, time, err = handleCommand(t.h)
+	retCode, r, runTime, err = handleCommand(t.h)
 	c.Assert(err, Not(IsNil))
 	c.Check(retCode, Equals, 1)
 
@@ -163,14 +165,14 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	time = 0
+	runTime = 0
 	match = nil
 	retCode = -512
 
 	t.h.cmd = exec.Command("/bin/echo", "somevalue")
 	t.h.opts.AllEvents = true
 
-	retCode, r, time, err = handleCommand(t.h)
+	retCode, r, runTime, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 
 	stat, ok = <-t.out
@@ -186,7 +188,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
-	c.Check(strconv.FormatFloat(time, 'f', -1, 64), Equals, match[0][1])
+	c.Check(strconv.FormatFloat(runTime, 'f', -1, 64), Equals, match[0][1])
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -197,7 +199,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd`, time/1000, t.h.uuid, t.h.uuid),
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd`, runTime/1000, t.h.uuid, t.h.uuid),
 	)
 
 	//
@@ -207,13 +209,13 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	time = 0
+	runTime = 0
 	match = nil
 
 	t.h.cmd = exec.Command("/bin/echo", "somevalue")
 	t.h.opts.EventGroup = "testgroup"
 
-	_, r, time, err = handleCommand(t.h)
+	_, r, runTime, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 
 	stat, ok = <-t.out
@@ -229,7 +231,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	match = timeStatRegex.FindAllStringSubmatch(string(stat), -1)
 	c.Assert(len(match), Equals, 1)
 	c.Assert(len(match[0]), Equals, 2)
-	c.Check(strconv.FormatFloat(time, 'f', -1, 64), Equals, match[0][1])
+	c.Check(strconv.FormatFloat(runTime, 'f', -1, 64), Equals, match[0][1])
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
@@ -240,7 +242,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	c.Check(
 		string(stat),
 		Equals,
-		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd,cronner_group:testgroup`, time/1000, t.h.uuid, t.h.uuid),
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd,cronner_group:testgroup`, runTime/1000, t.h.uuid, t.h.uuid),
 	)
 
 	//
@@ -250,7 +252,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	// Reset variables used
 	r = nil
 	err = nil
-	time = 0
+	runTime = 0
 	match = nil
 
 	t.h.cmd = exec.Command("/bin/echo", "something")
@@ -260,17 +262,10 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	t.h.opts.Lock = true
 	t.h.opts.AllEvents = false
 
-	lf, err := lockfile.New(t.lockFile)
-	c.Assert(err, IsNil)
-
 	retCode, r, _, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
-
-	// assert that the lockfile was removed
-	_, err = os.Stat(string(lf))
-	c.Assert(os.IsNotExist(err), Equals, true)
 
 	// clear the statsd return channel
 	_, ok = <-t.out
@@ -286,13 +281,67 @@ func (t *TestSuite) Test_runCommand(c *C) {
 	err = nil
 	retCode = -512
 
-	err = lf.TryLock()
+	lf := flock.NewFlock(t.lockFile)
+	c.Assert(lf, Not(IsNil))
+
+	locked, err := lf.TryLock()
 	c.Assert(err, IsNil)
-	defer lf.Unlock()
+	c.Assert(locked, Equals, true)
 
 	retCode, _, _, err = handleCommand(t.h)
 	c.Assert(err, Not(IsNil))
-	c.Check(err.Error(), Equals, fmt.Sprintf("failed to obtain lock on '%v': Locked by other process", t.lockFile))
+	c.Check(err.Error(), Equals, fmt.Sprintf("failed to obtain lock on '%v': locked by another process", t.lockFile))
+	c.Check(retCode, Equals, 200)
+
+	//
+	// Test that locking succeeds with a timeout
+	//
+
+	// Reset variables used
+	err = nil
+	retCode = -512
+
+	t.h.opts.WaitSeconds = 5
+	t.h.cmd = exec.Command("/bin/echo", "something")
+
+	go func() {
+		time.Sleep(time.Second * 3)
+		lf.Unlock()
+	}()
+
+	retCode, _, _, err = handleCommand(t.h)
+	c.Assert(err, IsNil)
+	c.Check(retCode, Equals, 0)
+
+	// clear the statsd return channel
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
+
+	//
+	// Test that locking fails when exceeding the timeout
+	//
+
+	// Reset variables used
+	err = nil
+	retCode = -512
+
+	t.h.opts.WaitSeconds = 1
+	t.h.cmd = exec.Command("/bin/echo", "something")
+
+	locked, err = lf.TryLock()
+	c.Assert(err, IsNil)
+	c.Assert(locked, Equals, true)
+
+	go func() {
+		time.Sleep(time.Second * 3)
+		lf.Unlock()
+	}()
+
+	retCode, _, _, err = handleCommand(t.h)
+	c.Assert(err, Not(IsNil))
+	c.Check(err.Error(), Equals, "timeout exceeded (1s) waiting for the file lock")
 	c.Check(retCode, Equals, 200)
 
 	//
@@ -309,7 +358,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	t.h.cmd = exec.Command("/bin/sleep", "3")
 
-	retCode, r, time, err = handleCommand(t.h)
+	retCode, r, runTime, err = handleCommand(t.h)
 	c.Assert(err, IsNil)
 	c.Assert(retCode, Equals, 0)
 	c.Check(len(r), Equals, 0)
@@ -332,7 +381,7 @@ func (t *TestSuite) Test_runCommand(c *C) {
 
 	statFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
-	c.Check(statFloat, Equals, time)
+	c.Check(statFloat, Equals, runTime)
 
 	stat, ok = <-t.out
 	c.Assert(ok, Equals, true)
