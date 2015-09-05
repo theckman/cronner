@@ -25,25 +25,26 @@ Usage:
   cronner [OPTIONS] -- command [arguments]...
 
 Application Options:
-  -d, --lock-dir=               the directory where lock files will be placed (/var/lock)
-  -e, --event                   emit a start and end datadog event (false)
-  -E, --event-fail              only emit an event on failure (false)
-  -F, --log-fail                when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
-  -G, --event-group=<group>     emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics
-  -k, --lock                    lock based on label so that multiple commands with the same label can not run concurrently (false)
-  -l, --label=                  name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
-      --log-path=               where to place the log files for command output (path for -F/--log-fail output) (/var/log/cronner/)
-  -L, --log-level=              set the level at which to log at [none|error|info|debug] (error)
-  -N, --namespace=              namespace for statsd emissions, value is prepended to metric name by statsd client (cronner)
-  -s, --sensitive               specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
-  -V, --version                 print the version string and exit
-  -w, --warn-after=N            emit a warning event every N seconds if the job hasn't finished, set to 0 to disable (0)
+  -d, --lock-dir=                  the directory where lock files will be placed (/var/lock)
+  -e, --event                      emit a start and end datadog event (false)
+  -E, --event-fail                 only emit an event on failure (false)
+  -F, --log-fail                   when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename (false)
+  -G, --event-group=<group>        emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics
+  -k, --lock                       lock based on label so that multiple commands with the same label can not run concurrently (false)
+  -l, --label=                     name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
+      --log-path=                  where to place the log files for command output (path for -F/--log-fail output) (/var/log/cronner)
+  -L, --log-level=                 set the level at which to log at [none|error|info|debug] (error)
+  -N, --namespace=                 namespace for statsd emissions, value is prepended to metric name by statsd client (cronner)
+  -s, --sensitive                  specify whether command output may contain sensitive details, this only avoids it being printed to stderr (false)
+  -V, --version                    print the version string and exit
+  -w, --warn-after=N               emit a warning event every N seconds if the job hasn't finished, set to 0 to disable (0)
+  -W, --wait-secs=                 how long to wait for the file lock for (0)
 
 Help Options:
-  -h, --help                    Show this help message
+  -h, --help                       Show this help message
 
 Arguments:
-  command [arguments]
+  -- command [arguments]
 ```
 
 ### Running A Command
