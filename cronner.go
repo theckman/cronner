@@ -6,6 +6,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
@@ -16,7 +17,7 @@ import (
 )
 
 // Version is the program's version string
-const Version = "0.2.0"
+const Version = "0.2.1"
 
 type cmdHandler struct {
 	gs       *godspeed.Godspeed
@@ -31,12 +32,18 @@ func main() {
 
 	// get and parse the command line options
 	opts := &binArgs{}
-	err := opts.parse()
+	output, err := opts.parse(nil)
 
 	// make sure parsing didn't bomb
 	if err != nil {
 		logger.Errorf("error: %v\n", err)
 		os.Exit(1)
+	}
+
+	// if parsing had output, print it and exit 0
+	if len(output) > 0 {
+		fmt.Print(output)
+		os.Exit(0)
 	}
 
 	// build a Godspeed client
