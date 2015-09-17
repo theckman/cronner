@@ -15,7 +15,7 @@ import (
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
-	"github.com/tideland/goas/v3/logger"
+	"github.com/tideland/golib/logger"
 	. "gopkg.in/check.v1"
 )
 

@@ -13,7 +13,7 @@ import (
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
-	"github.com/tideland/goas/v3/logger"
+	"github.com/tideland/golib/logger"
 )
 
 // Version is the program's version string

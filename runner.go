@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/theckman/go-flock"
-	"github.com/tideland/goas/v3/logger"
+	"github.com/tideland/golib/logger"
 )
 
 const intErrCode = 200
