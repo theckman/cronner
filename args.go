@@ -41,6 +41,8 @@ var argsLabelRegex = regexp.MustCompile(`^[a-zA-Z0-9_\. ]+$`)
 
 // parse function configures the go-flags parser and runs it
 // it also does some light input validation
+//
+// the args parameter is meant to be the entirety of os.Args
 func (a *binArgs) parse(args []string) (string, error) {
 	if args == nil {
 		args = os.Args
@@ -48,7 +50,7 @@ func (a *binArgs) parse(args []string) (string, error) {
 
 	p := flags.NewParser(a, flags.HelpFlag|flags.PassDoubleDash)
 
-	_, err := p.ParseArgs(args)
+	_, err := p.ParseArgs(args[1:])
 
 	// determine if there was a parsing error
 	// unfortunately, help message is returned as an error
