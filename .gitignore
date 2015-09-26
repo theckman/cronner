@@ -31,3 +31,5 @@ _testmain.go
 
 src
 pkg
+
+testlog/

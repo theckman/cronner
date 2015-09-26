@@ -17,10 +17,13 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	var output string
 	var err error
 
-	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
+	const Arg0 = "/usr/loca/bin/cronner"
 
+	//
+	// assert that label is required and is validated
+	//
 	args := &binArgs{}
-	cli := []string{"/usr/local/bin/cronner"}
+	cli := []string{Arg0}
 
 	output, err = args.parse(cli)
 	c.Assert(err, Not(IsNil))
@@ -29,7 +32,21 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
+		"-l", "invalid^label",
+	}
+
+	output, err = args.parse(cli)
+	c.Assert(err, Not(IsNil))
+	c.Check(len(output), Equals, 0)
+	c.Check(err.Error(), Equals, "cron label 'invalid^label' is invalid, it can only be alphanumeric with underscores, periods, and spaces")
+
+	//
+	// assert that a command is required
+	//
+	args = &binArgs{}
+	cli = []string{
+		Arg0,
 		"-l", "test",
 	}
 
@@ -38,11 +55,16 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(len(output), Equals, 0)
 	c.Check(err.Error(), Equals, "you must specify a command to run either using by adding it to the end, or using the command flag")
 
+	//
+	// assert that version (-v/--version) printing works
+	//
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"-V",
 	}
+
+	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
 
 	output, err = args.parse(cli)
 	c.Assert(err, IsNil)
@@ -51,7 +73,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"--version",
 	}
 
@@ -60,9 +82,12 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(output, Equals, verOut)
 	c.Check(args.Version, Equals, true)
 
+	//
+	// assert the default values
+	//
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"-l", "test",
 		"--", "/bin/true",
 	}
@@ -84,9 +109,12 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.WarnAfter, Equals, uint64(0))
 	c.Check(args.WaitSeconds, Equals, uint64(0))
 
+	//
+	// assert that the short flags work
+	//
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"-d", "/var/testlock",
 		"-e",
 		"-E",
@@ -123,12 +151,15 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
-	c.Assert(len(args.Args.Command), Equals, 1)
-	c.Check(args.Args.Command[0], Equals, "/bin/true")
+	c.Check(args.Cmd, Equals, "/bin/true")
+	c.Check(len(args.CmdArgs), Equals, 0)
 
+	//
+	// assert that long flags work
+	//
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"--lock-dir", "/var/testlock",
 		"--event",
 		"--event-fail",
@@ -164,12 +195,15 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
-	c.Assert(len(args.Args.Command), Equals, 1)
-	c.Check(args.Args.Command[0], Equals, "/bin/true")
+	c.Check(args.Cmd, Equals, "/bin/true")
+	c.Check(len(args.CmdArgs), Equals, 0)
 
+	//
+	// assert that long flags work with --flag=value syntax
+	//
 	args = &binArgs{}
 	cli = []string{
-		"/usr/local/bin/cronner",
+		Arg0,
 		"--lock-dir=/var/testlock",
 		"--event-group=test_group",
 		"--label=test",
@@ -194,12 +228,16 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Namespace, Equals, "testcronner")
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
-	c.Assert(len(args.Args.Command), Equals, 1)
-	c.Check(args.Args.Command[0], Equals, "/bin/true")
+	c.Check(args.Cmd, Equals, "/bin/true")
+	c.Check(len(args.CmdArgs), Equals, 0)
 
-	// argument parsing regression test
+	//
+	// argument parsing regression tests
+	//
+
 	//
 	// parse() function should always discard element 0 in the slice.
+	//
 	args = &binArgs{}
 	cli = []string{
 		"--lock-dir=/var/testlock",
@@ -216,5 +254,26 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LockDir, Not(Equals), "/var/testlock")
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Label, Equals, "test")
-	c.Check(args.Args.Command[0], Equals, "/bin/true")
+	c.Check(args.Cmd, Equals, "/bin/true")
+	c.Check(len(args.CmdArgs), Equals, 0)
+
+	//
+	// parse() function should allow spaces in command line arguments
+	//
+	args = &binArgs{}
+	cli = []string{
+		Arg0,
+		"--label=test",
+		"--", "/bin/true", `some string`,
+	}
+
+	output, err = args.parse(cli)
+	c.Assert(err, IsNil)
+	logger.SetLevel(logger.LevelFatal)
+
+	c.Check(len(output), Equals, 0)
+	c.Check(args.Label, Equals, "test")
+	c.Check(args.Cmd, Equals, "/bin/true")
+	c.Assert(len(args.CmdArgs), Equals, 1)
+	c.Check(args.CmdArgs[0], Equals, "some string")
 }
