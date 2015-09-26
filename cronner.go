@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
@@ -65,21 +64,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// split the command in to its binary and arguments
-	cmdParts := strings.Split(opts.Cmd, " ")
-
-	// build the args slice
-	var args []string
-	if len(cmdParts) > 1 {
-		args = cmdParts[1:]
-	}
-
 	handler := &cmdHandler{
 		opts:     opts,
 		hostname: hostname,
 		gs:       gs,
 		uuid:     uuid.New(),
-		cmd:      exec.Command(cmdParts[0], args...),
+		cmd:      exec.Command(opts.Cmd, opts.CmdArgs...),
 	}
 
 	ret, _, _, err := handleCommand(handler)
