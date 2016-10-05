@@ -7,6 +7,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -48,18 +49,29 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", hndlr.opts.Label, hndlr.hostname), fmt.Sprintf("UUID: %v\n", hndlr.uuid), hndlr.opts.Label, "info", hndlr)
 	}
 
-	// set up the output buffer for the command
+	// set up the output buffers for the command
 	var b bytes.Buffer
 
-	// comnbine stdout and stderr to the same buffer
+	// setup multiple streams only on passthru
+	// combine stdout and stderr to the same buffer
 	// if we actually plan on using the command output
 	// otherwise, /dev/null
 	if hndlr.opts.AllEvents || hndlr.opts.FailEvent || hndlr.opts.LogFail {
-		hndlr.cmd.Stdout = &b
-		hndlr.cmd.Stderr = &b
+		if hndlr.opts.Passthru {
+			hndlr.cmd.Stdout = io.MultiWriter(os.Stdout, &b)
+			hndlr.cmd.Stderr = io.MultiWriter(os.Stderr, &b)
+		} else {
+			hndlr.cmd.Stdout = &b
+			hndlr.cmd.Stderr = &b
+		}
 	} else {
-		hndlr.cmd.Stdout = nil
-		hndlr.cmd.Stderr = nil
+		if hndlr.opts.Passthru {
+			hndlr.cmd.Stdout = os.Stdout
+			hndlr.cmd.Stderr = os.Stderr
+		} else {
+			hndlr.cmd.Stdout = nil
+			hndlr.cmd.Stderr = nil
+		}
 	}
 
 	// build a new lockFile
@@ -233,6 +245,11 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		body = fmt.Sprintf("%voutput: %v", body, cmdOutput)
 
 		emitEvent(title, body, hndlr.opts.Label, alertType, hndlr)
+	}
+
+	// DRY: stdout/stderr has already been printed
+	if hndlr.opts.Passthru {
+		hndlr.opts.Sensitive = true
 	}
 
 	// this code block is meant to be ran last

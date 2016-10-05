@@ -6,6 +6,8 @@ package main
 
 import (
 	"fmt"
+	"bytes"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -393,6 +395,71 @@ func (t *TestSuite) Test_handleCommand(c *C) {
 	retFloat, err = strconv.ParseFloat(match[0][1], 64)
 	c.Assert(err, IsNil)
 	c.Check(retFloat, Equals, float64(0))
+
+	//
+	// Test passthru to stdout/stderr
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	runTime = 0
+	match = nil
+	retCode = -512
+
+	t.h.cmd = exec.Command("/bin/bash", "testdata/echo.sh")
+	t.h.opts.Passthru = true
+	t.h.opts.AllEvents = true
+
+	// Capture stdout/stderr
+	oldStdout := os.Stdout
+	oldStderr := os.Stderr
+	oReader, oWriter, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	eReader, eWriter, err := os.Pipe()
+	if err != nil {
+		panic(err)
+	}
+	os.Stdout = oWriter
+	os.Stderr = eWriter
+
+	// copy the output in a separate goroutine (non-blocking)
+	outC := make(chan string)
+	errC := make(chan string)
+
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, oReader)
+		outC <- buf.String()
+	}()
+
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, eReader)
+		errC <- buf.String()
+	}()
+
+	retCode, r, runTime, err = handleCommand(t.h)
+
+	// restore stdout/stderr back to normal state
+	oWriter.Close()
+	eWriter.Close()
+	os.Stdout = oldStdout
+	os.Stderr = oldStderr
+	stdout := <-outC
+	stderr := <-errC
+
+	// Check the output
+	c.Assert(err, IsNil)
+	c.Check(retCode, Equals, 0)
+	c.Assert(string(r), Equals, "stdout\nstderr\nstderr\nstdout\nstderr\nstdout\nstdout\nstderr\n")
+	c.Assert(stdout, Equals, "stdout\nstdout\nstdout\nstdout\n")
+	c.Assert(stderr, Equals, "stderr\nstderr\nstderr\nstderr\n")
+
+	_, ok = <-t.out
+	c.Assert(ok, Equals, true)
 }
 
 func (t *TestSuite) Test_emitEvent(c *C) {

@@ -20,16 +20,17 @@ type binArgs struct {
 	Cmd         string   // this is not a command line flag, but rather parsed results
 	CmdArgs     []string // this is not a command line flag, also parsed results
 	LockDir     string   `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
-	AllEvents   bool     `short:"e" long:"event" default:"false" description:"emit a start and end datadog event"`
-	FailEvent   bool     `short:"E" long:"event-fail" default:"false" description:"only emit an event on failure"`
-	LogFail     bool     `short:"F" long:"log-fail" default:"false" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
+	AllEvents   bool     `short:"e" long:"event" description:"emit a start and end datadog event"`
+	FailEvent   bool     `short:"E" long:"event-fail" description:"only emit an event on failure"`
+	LogFail     bool     `short:"F" long:"log-fail" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	EventGroup  string   `short:"G" long:"event-group" value-name:"<group>" description:"emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics"`
-	Lock        bool     `short:"k" long:"lock" default:"false" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
+	Lock        bool     `short:"k" long:"lock" description:"lock based on label so that multiple commands with the same label can not run concurrently"`
 	Label       string   `short:"l" long:"label" description:"name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it"`
 	LogPath     string   `long:"log-path" default:"/var/log/cronner" description:"where to place the log files for command output (path for -F/--log-fail output)"`
 	LogLevel    string   `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Namespace   string   `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
-	Sensitive   bool     `short:"s" long:"sensitive" default:"false" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
+	Passthru    bool     `short:"p" long:"passthru" description:"passthru stdout/stderr to controlling tty"`
+	Sensitive   bool     `short:"s" long:"sensitive" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 	Version     bool     `short:"V" long:"version" description:"print the version string and exit"`
 	WarnAfter   uint64   `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
 	WaitSeconds uint64   `short:"W" long:"wait-secs" default:"0" description:"how long to wait for the file lock for"`
