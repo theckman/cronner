@@ -409,7 +409,6 @@ func (t *TestSuite) Test_handleCommand(c *C) {
 
 	t.h.cmd = exec.Command("/bin/bash", "testdata/echo.sh")
 	t.h.opts.Passthru = true
-	t.h.opts.AllEvents = true
 
 	// Capture stdout/stderr
 	oldStdout := os.Stdout
@@ -454,7 +453,7 @@ func (t *TestSuite) Test_handleCommand(c *C) {
 	// Check the output
 	c.Assert(err, IsNil)
 	c.Check(retCode, Equals, 0)
-	c.Assert(string(r), Equals, "stdout\nstderr\nstderr\nstdout\nstderr\nstdout\nstdout\nstderr\n")
+	c.Assert(len(r), Equals, 0)
 	c.Assert(stdout, Equals, "stdout\nstdout\nstdout\nstdout\n")
 	c.Assert(stderr, Equals, "stderr\nstderr\nstderr\nstderr\n")
 
