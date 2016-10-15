@@ -191,8 +191,14 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 	}
 
 	// emit the metric for how long it took us and return code
-	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), wallRtMs, nil)
-	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), nil)
+	tags := []string{}
+
+	if len(hndlr.opts.Group) > 0 {
+		tags = append(tags, fmt.Sprintf("cronner_group:%v", hndlr.opts.Group))
+	}
+
+	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), wallRtMs, tags)
+	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), tags)
 
 	out := b.Bytes()
 
