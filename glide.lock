@@ -1,0 +1,18 @@
+hash: 4e041a56797b8a494aa92328b59e063419cd6426fe21df629c496155754ffd9c
+updated: 2016-12-02T01:52:23.883018527-08:00
+imports:
+- name: github.com/codeskyblue/go-uuid
+  version: 952abbca900b023c1a80bc522ff4795db50d9d6c
+- name: github.com/jessevdk/go-flags
+  version: 8bc97d602c3bfeb5fc6fc9b5a9c898f245495637
+- name: github.com/PagerDuty/godspeed
+  version: 6d136386b5f291797c77764dfd2acc950dc27347
+- name: github.com/theckman/go-flock
+  version: a93fcf752ad6adea9207699d9ac3756e662126b4
+- name: github.com/tideland/golib
+  version: 185b9005c440962b2f4f4896045147ca204065cb
+  subpackages:
+  - logger
+testImports:
+- name: gopkg.in/check.v1
+  version: 4f90aeace3a26ad7021961c297b22c42160c7b25
