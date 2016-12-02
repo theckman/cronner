@@ -1,5 +1,5 @@
 # cronner
-[![TravisCI Build Status](https://img.shields.io/travis/PagerDuty/cronner/master.svg?style=flat)](https://travis-ci.org/PagerDuty/cronner)
+[![TravisCI Build Status](https://img.shields.io/travis/theckman/cronner/master.svg?style=flat)](https://travis-ci.org/theckman/cronner)
 
 `cronner` is a command line utility to that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to ran, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for very simple, and dumb, job semaphore.
 
@@ -92,7 +92,7 @@ _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\
 * clone the cronner repository
 
   ```BASH
-  git clone git@github.com:PagerDuty/cronner.git
+  git clone git@github.com:theckman/cronner.git
   ```
 * make your changes to the codebase, including adding relevant test cases
 * run your tests to ensure all pass
