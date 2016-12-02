@@ -1,24 +1,29 @@
 language: go
 go:
-- 1.5.3
+- 1.7.3
 addons:
   apt:
     packages:
     - time
 sudo: false
-env: 'PD_PROJECT=cronner GOARCH=amd64 GOOS=linux PD_BUILD_NAME="$PD_PROJECT-$GOOS-$GOARCH-$TRAVIS_TAG"'
-script: go test -v ./... -check.vv
+notifications:
+  email:
+    on_success: never
+    on_failure: always
+env: 'PROJECT_NAME=cronner GOARCH=amd64 GOOS=linux PROJECT_BUILD_NAME="$PROJECT_NAME-$GOOS-$GOARCH-$TRAVIS_TAG"'
+install: go get -u github.com/Masterminds/glide
+script: go test -v $(glide novendor) -check.vv
 before_deploy:
 - mkdir build
-- mkdir $PD_BUILD_NAME
-- go build -o $PD_BUILD_NAME/$PD_PROJECT
-- tar -czf build/$PD_BUILD_NAME.tar.gz $PD_BUILD_NAME/
+- mkdir $PROJECT_BUILD_NAME
+- go build -o $PROJECT_BUILD_NAME/$PROJECT_NAME
+- tar -czf build/$PROJECT_BUILD_NAME.tar.gz $PROJECT_BUILD_NAME/
 deploy:
   provider: releases
   skip_cleanup: true
-  api_key:
-    secure: Rxly2mwatA2tHz9MscZR/YdU7TR3S0kUeQv1DmKp7x0zlcPMcDtD9hQcRrv5W3JL3FsxUn9hoLQRmYPxgKmHBRBdFjn9s3tqx8wfnWkcaVHvwz3dxYEJQxlQVgl19gGFlL9uXfOt/PR2pMpFxSLdudwyBvCR9cXMWr0Y4MRHfuZtrfb0q1EGaJuhXb6hcp1STrKUgEUiv7fDcQOS6KIiPdQey6hELdidWTCIHgo2C6w+r3z2PG2y7w5s7S4vSFicNSsyV/wRPv3Eelcv2YSddcGrltb+Pd/weKDTfvLLzA3jMbFpqI/XSnr/szrXtrYomQE/9pdBwfgHD9gZ7tcRrTOVVx5bIx7+CbZ4CJdIQtHKdqjFHmXoAjCUJYnSfLMy9c9dZ42RGrmw7P1z3hB5wwLRrd3PXXlmV1YfEJt5deugXHxHxC/a5rEMNEJxPhHL4yaoxL8gO1v02o21C4DCVDalgJ18M2YjX2NCujoAfYls5ib/QCeoZAxHz/zVI80SWvqdSC/vqm4+pbzdw6JriRcUvdFb6owU1mQjloO4fGCJkT3Dhqaa916UKuqjB2ogg9SQpyPvx8VX6q7yCOzV0sk4WZZJfImiys+ifZaJoecVth8jAISdOkIJIm9a9oPy6IOskYQKP51sjhqvS/G5wmxl1Ips1Ik42iUsXpI+7Us=
-  file: build/$PD_BUILD_NAME.tar.gz
+  file: build/$PROJECT_BUILD_NAME.tar.gz
   on:
-    repo: PagerDuty/cronner
+    repo: theckman/cronner
     tags: true
+  api_key:
+    secure: BYFoIL6jJi/OAK/GMiMyHE75ESHSTgvD4kV4WxMvsgeFyJc8X9svRPV845nGo+tbtxtQOqPs3jOyRqbAI/Snuv0b1MUCCpAkNJZn4kc63gQHt79ebSuv58hov3WJrL3S0Pv6lQLqwHAmotRmGl+FvRpS8QxLT4NJsbYFRsCIzv93Aia3+2+NX2xT8p3IE46WI5eZXUPeQ/u3MqKosbi/soYWdY5bybA0vIyio4zcoDZqEb7q88lTlrGA4tkEtzad37PSWjnMguBGtbOsHoZH3vHLYmWdVa2Rsb9Cf54LTvp6d72bKbS9bcIwHw7JBlwDKGQF+sG763prxtHEdvO4hSUOfRH5fOhvFB+JNAt/mPqyTbUhEp6sgfAikJ6BARawhU6HWdKMPAoD5OB3+GFF/hzbWCFrxvSpmxC1QuWNUALwbaPOJEIKfyJ6hMwAIUqKqUEfDfE8hIruW6PSaw2oyfQghQCLPVCetxZh0D0sqFV3M499OSj/UYt51H8o4NvooMTQTO0Dl/tXl8S4UNtXJSRGmMyTlOVOvoNzo6Z8M4e7L7suwwHX2XLe72M764F0izDxpvD2gSz3VsjsZ61xjzupkpVu9Q2AEOY5dvKEimPucq6b8n/QHRd2SFltsFTPP/bsQKd+QBbFVonOhgC91b7paV6W0E91PEBsmCl66JI=

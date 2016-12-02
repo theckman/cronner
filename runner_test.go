@@ -248,6 +248,52 @@ func (t *TestSuite) Test_handleCommand(c *C) {
 	)
 
 	//
+	// Test that DD metrics contain the cronner_group tag
+	//
+
+	// Reset variables used
+	r = nil
+	err = nil
+	runTime = 0
+	match = nil
+
+	t.h.cmd = exec.Command("/bin/echo", "somevalue")
+	t.h.opts.Group = "metricgroup"
+	t.h.opts.EventGroup = ""
+
+	_, r, runTime, err = handleCommand(t.h)
+	c.Assert(err, IsNil)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{35,44}:Cron testCmd starting on brainbox01|UUID: %v\n|k:%v|s:cronner|t:info|#source_type:cronner,cronner_label_name:testCmd`, t.h.uuid, t.h.uuid),
+	)
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	timeStatTagRegex := regexp.MustCompile("^cronner.testCmd.time:([0-9\\.]+)\\|ms\\|#cronner_group:([a-z]+)$")
+	match = timeStatTagRegex.FindAllStringSubmatch(string(stat), -1)
+	c.Assert(len(match), Equals, 1)
+	c.Assert(len(match[0]), Equals, 3)
+	c.Check(strconv.FormatFloat(runTime, 'f', -1, 64), Equals, match[0][1])
+	c.Check("metricgroup", Equals, match[0][2])
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(string(stat), Equals, "cronner.testCmd.exit_code:0|g|#cronner_group:metricgroup")
+
+	stat, ok = <-t.out
+	c.Assert(ok, Equals, true)
+	c.Check(
+		string(stat),
+		Equals,
+		fmt.Sprintf(`_e{55,77}:Cron testCmd succeeded in %.5f seconds on brainbox01|UUID: %v\nexit code: 0\noutput: somevalue\n|k:%v|s:cronner|t:success|#source_type:cronner,cronner_label_name:testCmd`, runTime/1000, t.h.uuid, t.h.uuid),
+	)
+
+	//
 	// Test that no output is given
 	//
 
@@ -259,6 +305,7 @@ func (t *TestSuite) Test_handleCommand(c *C) {
 
 	t.h.cmd = exec.Command("/bin/echo", "something")
 	t.h.opts.EventGroup = ""
+	t.h.opts.Group = ""
 
 	t.h.opts.LogFail = false
 	t.h.opts.Lock = true

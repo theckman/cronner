@@ -100,6 +100,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.FailEvent, Equals, false)
 	c.Check(args.LogFail, Equals, false)
 	c.Check(args.EventGroup, Equals, "")
+	c.Check(args.Group, Equals, "")
 	c.Check(args.Lock, Equals, false)
 	c.Check(args.LogPath, Equals, "/var/log/cronner")
 	c.Check(args.LogLevel, Equals, "error")
@@ -121,6 +122,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-E",
 		"-F",
 		"-G", "test_group",
+		"-g", "metric_group",
 		"-k",
 		"-l", "test",
 		"-L", "info",
@@ -145,6 +147,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.FailEvent, Equals, true)
 	c.Check(args.LogFail, Equals, true)
 	c.Check(args.EventGroup, Equals, "test_group")
+	c.Check(args.Group, Equals, "metric_group")
 	c.Check(args.Lock, Equals, true)
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogLevel, Equals, "info")
@@ -168,6 +171,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--event-fail",
 		"--log-fail",
 		"--event-group", "test_group",
+		"--group", "metric_group",
 		"--lock",
 		"--label", "test",
 		"--log-path", "/var/log/testcronner",
@@ -190,6 +194,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.FailEvent, Equals, true)
 	c.Check(args.LogFail, Equals, true)
 	c.Check(args.EventGroup, Equals, "test_group")
+	c.Check(args.Group, Equals, "metric_group")
 	c.Check(args.Lock, Equals, true)
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
@@ -211,6 +216,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		Arg0,
 		"--lock-dir=/var/testlock",
 		"--event-group=test_group",
+		"--group=metric_group",
 		"--label=test",
 		"--log-path=/var/log/testcronner",
 		"--log-level=info",
@@ -227,6 +233,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(len(output), Equals, 0)
 	c.Check(args.LockDir, Equals, "/var/testlock")
 	c.Check(args.EventGroup, Equals, "test_group")
+	c.Check(args.Group, Equals, "metric_group")
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
 	c.Check(args.LogLevel, Equals, "info")

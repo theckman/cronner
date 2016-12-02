@@ -1,0 +1,13 @@
+package: github.com/theckman/cronner
+import:
+- package: github.com/PagerDuty/godspeed
+- package: github.com/codeskyblue/go-uuid
+- package: github.com/jessevdk/go-flags
+  version: ^1.1.0
+- package: github.com/theckman/go-flock
+- package: github.com/tideland/golib
+  version: ^4.15.1
+  subpackages:
+  - logger
+testImport:
+- package: gopkg.in/check.v1
