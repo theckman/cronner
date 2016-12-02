@@ -11,7 +11,8 @@ notifications:
     on_success: never
     on_failure: always
 env: 'PROJECT_NAME=cronner GOARCH=amd64 GOOS=linux PROJECT_BUILD_NAME="$PROJECT_NAME-$GOOS-$GOARCH-$TRAVIS_TAG"'
-script: go test -v ./... -check.vv
+install: go get -u github.com/Masterminds/glide
+script: go test -v $(glide novendor) -check.vv
 before_deploy:
 - mkdir build
 - mkdir $PROJECT_BUILD_NAME
