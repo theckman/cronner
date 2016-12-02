@@ -194,7 +194,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 	tags := []string{}
 
 	if len(hndlr.opts.Group) > 0 {
-		tags = append(tags, fmt.Sprintf("cronner_group:%v", hndlr.opts.Group))
+		tags = append(tags, fmt.Sprintf("cronner_group:%s", hndlr.opts.Group))
 	}
 
 	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), wallRtMs, tags)
@@ -284,7 +284,7 @@ func emitEvent(title, body, label, alertType string, hndlr *cmdHandler) {
 	tags := []string{"source_type:cronner", fmt.Sprintf("cronner_label_name:%v", label)}
 
 	if len(hndlr.opts.EventGroup) > 0 {
-		tags = append(tags, fmt.Sprintf("cronner_group:%v", hndlr.opts.EventGroup))
+		tags = append(tags, fmt.Sprintf("cronner_group:%s", hndlr.opts.EventGroup))
 	}
 
 	hndlr.gs.Event(title, body, fields, tags)
