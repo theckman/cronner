@@ -105,6 +105,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LogPath, Equals, "/var/log/cronner")
 	c.Check(args.LogLevel, Equals, "error")
 	c.Check(args.Namespace, Equals, "cronner")
+	c.Check(args.Passthru, Equals, false)
 	c.Check(args.Sensitive, Equals, false)
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(0))
@@ -126,6 +127,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-l", "test",
 		"-L", "info",
 		"-N", "testcronner",
+		"-p",
 		"-s",
 		"-w", "42",
 		"-W", "84",
@@ -150,6 +152,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogLevel, Equals, "info")
 	c.Check(args.Namespace, Equals, "testcronner")
+	c.Check(args.Passthru, Equals, true)
 	c.Check(args.Sensitive, Equals, true)
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
@@ -174,6 +177,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--log-path", "/var/log/testcronner",
 		"--log-level", "info",
 		"--namespace", "testcronner",
+		"--passthru",
 		"--sensitive",
 		"--warn-after", "42",
 		"--wait-secs", "84",
@@ -196,6 +200,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
 	c.Check(args.LogLevel, Equals, "info")
 	c.Check(args.Namespace, Equals, "testcronner")
+	c.Check(args.Passthru, Equals, true)
 	c.Check(args.Sensitive, Equals, true)
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))

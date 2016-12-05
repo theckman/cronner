@@ -30,6 +30,7 @@ type binArgs struct {
 	LogPath     string   `long:"log-path" default:"/var/log/cronner" description:"where to place the log files for command output (path for -F/--log-fail output)"`
 	LogLevel    string   `short:"L" long:"log-level" default:"error" description:"set the level at which to log at [none|error|info|debug]"`
 	Namespace   string   `short:"N" long:"namespace" default:"cronner" description:"namespace for statsd emissions, value is prepended to metric name by statsd client"`
+	Passthru    bool     `short:"p" long:"passthru" description:"passthru stdout/stderr to controlling tty"`
 	Sensitive   bool     `short:"s" long:"sensitive" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
 	Version     bool     `short:"V" long:"version" description:"print the version string and exit"`
 	WarnAfter   uint64   `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
