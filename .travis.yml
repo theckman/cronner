@@ -1,6 +1,6 @@
 language: go
 go:
-- 1.7.3
+- 1.7.4
 addons:
   apt:
     packages:
@@ -18,10 +18,13 @@ before_deploy:
 - mkdir $PROJECT_BUILD_NAME
 - go build -o $PROJECT_BUILD_NAME/$PROJECT_NAME
 - tar -czf build/$PROJECT_BUILD_NAME.tar.gz $PROJECT_BUILD_NAME/
+- shasum -a 256 -- build/$PROJECT_BUILD_NAME.tar.gz | sed -e 's#build/##g' > build/$PROJECT_BUILD_NAME.tar.gz.sha256
 deploy:
   provider: releases
   skip_cleanup: true
-  file: build/$PROJECT_BUILD_NAME.tar.gz
+  file:
+  - build/$PROJECT_BUILD_NAME.tar.gz
+  - build/$PROJECT_BUILD_NAME.tar.gz.sha256
   on:
     repo: theckman/cronner
     tags: true
