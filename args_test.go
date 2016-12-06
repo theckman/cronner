@@ -64,7 +64,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-V",
 	}
 
-	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
+	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2016 Tim Heckman\nCopyright 2015 PagerDuty, Inc.\nReleased under the BSD 3-Clause License\n", Version, runtime.Version())
 
 	output, err = args.parse(cli)
 	c.Assert(err, IsNil)
