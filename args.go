@@ -71,7 +71,10 @@ func (a *binArgs) parse(args []string) (string, error) {
 	}
 
 	if a.Version {
-		out := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
+		out := fmt.Sprintf(
+			"cronner v%s built with %s\nCopyright 2016 Tim Heckman\nCopyright 2015 PagerDuty, Inc.\nReleased under the BSD 3-Clause License\n",
+			Version, runtime.Version(),
+		)
 		return out, nil
 	}
 
