@@ -5,7 +5,6 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
 	"math/rand"
 	"net"
@@ -100,13 +99,13 @@ func listener(l *net.UDPConn, ctrl <-chan int, c chan<- []byte) {
 		default:
 			buffer := make([]byte, 8193)
 
-			_, err := l.Read(buffer)
+			n, err := l.Read(buffer)
 
 			if err != nil {
 				continue
 			}
 
-			c <- bytes.Trim(buffer, "\x00")
+			c <- buffer[:n]
 		}
 	}
 }
