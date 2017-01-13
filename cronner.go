@@ -1,4 +1,5 @@
-// Copyright 2015 PagerDuty, Inc, et al. All rights reserved.
+// Copyright 2015 PagerDuty, Inc, et al.
+// Copyright 2016-2017 Tim Heckman
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
