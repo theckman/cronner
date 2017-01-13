@@ -83,6 +83,13 @@ cronner.sleepytime2.exit_code:0|g
 _e{55,22}:Cron sleepytime2 succeeded in 5.00565 seconds on rinzler|exit code: 0\\noutput:(none)|k:ab31f2f6-498e-468a-b572-ab990065e8d3|s:cronner|t:success
 ```
 
+## Chef Cookbook
+To make `cronner` easier to install and use, there is a
+[cronner](https://supermarket.chef.io/cookbooks/cronner) Chef cookbook
+available for use. Not only does it allow you to install `cronner`, but it makes
+it easy to replace your `cron_d` resources with ones that will wrap the jobs
+with `cronner`.
+
 ## Contributors
 * Tim Heckman
 * Thomas Dziedzic
