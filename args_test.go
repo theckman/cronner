@@ -1,4 +1,5 @@
-// Copyright 2015 PagerDuty, Inc, et al. All rights reserved.
+// Copyright 2015 PagerDuty, Inc., et al.
+// Copyright 2016-2017 Tim Heckman
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
@@ -64,7 +65,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-V",
 	}
 
-	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2016 Tim Heckman\nCopyright 2015 PagerDuty, Inc.\nReleased under the BSD 3-Clause License\n", Version, runtime.Version())
+	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.\nCopyright 2016-2017 Tim Heckman\nReleased under the BSD 3-Clause License\n", Version, runtime.Version())
 
 	output, err = args.parse(cli)
 	c.Assert(err, IsNil)

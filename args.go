@@ -1,4 +1,5 @@
-// Copyright 2015 PagerDuty, Inc, et al. All rights reserved.
+// Copyright 2015 PagerDuty, Inc., et al.
+// Copyright 2016-2017 Tim Heckman
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
 
@@ -14,6 +15,13 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/tideland/golib/logger"
 )
+
+// appVersionString is the full version string for the -V/--version output
+const appVersionString = `cronner v%s built with %s
+Copyright 2015 PagerDuty, Inc.
+Copyright 2016-2017 Tim Heckman
+Released under the BSD 3-Clause License
+`
 
 // binArgs is for argument parsing
 type binArgs struct {
@@ -72,7 +80,7 @@ func (a *binArgs) parse(args []string) (string, error) {
 
 	if a.Version {
 		out := fmt.Sprintf(
-			"cronner v%s built with %s\nCopyright 2016 Tim Heckman\nCopyright 2015 PagerDuty, Inc.\nReleased under the BSD 3-Clause License\n",
+			appVersionString,
 			Version, runtime.Version(),
 		)
 		return out, nil
