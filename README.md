@@ -29,8 +29,8 @@ Application Options:
   -e, --event                      emit a start and end datadog event
   -E, --event-fail                 only emit an event on failure
   -F, --log-fail                   when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename
-  -G, --event-group=<group>        emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics
   -g, --group=<group>              emit a cronner_group:<group> tag with statsd metrics
+  -G, --event-group=<group>        emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics
   -k, --lock                       lock based on label so that multiple commands with the same label can not run concurrently
   -l, --label=                     name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
       --log-path=                  where to place the log files for command output (path for -F/--log-fail output) (default: /var/log/cronner)
