@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aristanetworks/goarista/monotime"
 	"github.com/theckman/go-flock"
 	"github.com/tideland/golib/logger"
 )
@@ -115,7 +116,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		}
 	}
 
-	var s time.Time
+	var startMono, stopMono uint64
 	ch := make(chan error)
 
 	// if we have a timer value, do all the extra logic to
@@ -128,9 +129,9 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		// won't live much beyond the command returning
 		tickChan := time.Tick(time.Second * time.Duration(hndlr.opts.WarnAfter))
 
-		// get the current (start) time since the UTC epoch
-		// and run the command
-		s = time.Now().UTC()
+		// get the value for now from the monotonic clock
+		startMono = monotime.Now()
+
 		go execCmd(hndlr.cmd, ch)
 
 		// this is an open loop to wait for either the command to return
@@ -140,15 +141,18 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 	WaitLoop:
 		for {
 			// wait for either the command channel to return an error value
-			// or wait for the ticket channel to return a time.Time value
+			// or wait for the ticker channel to return a time.Time value
 			select {
 			case m := <-ch:
-				// the comand returned; set the error vailue and bail out of here
+				// the comand returned; get a monotonic end time,
+				// set the error vailue, and bail out of here!
+				stopMono = monotime.Now()
 				err = m
+
 				break WaitLoop
 			case _, ok := <-tickChan:
 				if ok {
-					runSecs := time.Since(s).Seconds()
+					runSecs := monotime.Since(startMono).Seconds()
 					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", hndlr.opts.Label, int64(runSecs), hndlr.hostname)
 					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", hndlr.uuid, int64(runSecs))
 					emitEvent(title, body, hndlr.opts.Label, "warning", hndlr)
@@ -156,21 +160,17 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 			}
 		}
 	} else {
-		// get the current (start) time since the UTC epoch
-		// and run the command
-		s = time.Now().UTC()
+		// get the value for now from the monotonic clock
+		startMono = monotime.Now()
+
 		go execCmd(hndlr.cmd, ch)
 		err = <-ch
+
+		// get a monotonic end time
+		stopMono = monotime.Now()
 	}
 
-	// This next section computes the wallclock run time in ms.
-	// However, there is the unfortunate limitation in that
-	// it uses the clock that gets adjusted by ntpd. Within pure
-	// Go, we don't have access to CLOCK_MONOTONIC_RAW.
-	//
-	// However, based on our usage I don't think we care about it
-	// being off by a few milliseconds.
-	wallRtMs := time.Since(s).Seconds() * 1000
+	monotonicRtMs := float64(stopMono-startMono) / 1000000
 
 	// calculate the return code of the command
 	// default to return code 0: success
@@ -210,7 +210,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		tags = append(tags, fmt.Sprintf("cronner_group:%s", hndlr.opts.Group))
 	}
 
-	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), wallRtMs, tags)
+	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), monotonicRtMs, tags)
 	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), tags)
 
 	out := b.Bytes()
@@ -228,7 +228,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 
 	if hndlr.opts.AllEvents || (hndlr.opts.FailEvent && alertType == "error") {
 		// build the pieces of the completion event
-		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", hndlr.opts.Label, msg, wallRtMs/1000, hndlr.hostname)
+		title := fmt.Sprintf("Cron %v %v in %.5f seconds on %v", hndlr.opts.Label, msg, monotonicRtMs/1000, hndlr.hostname)
 
 		body := fmt.Sprintf("UUID: %v\nexit code: %d\n", hndlr.uuid, ret)
 		if err != nil {
@@ -267,7 +267,7 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		}
 	}
 
-	return ret, out, wallRtMs, err
+	return ret, out, monotonicRtMs, err
 }
 
 // emit a godspeed (dogstatsd) event

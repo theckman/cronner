@@ -1,6 +1,6 @@
 // Tideland Go Library - Audit
 //
-// Copyright (C) 2012-2015 Frank Mueller / Tideland / Oldenburg / Germany
+// Copyright (C) 2012-2017 Frank Mueller / Tideland / Oldenburg / Germany
 //
 // All rights reserved. Use of this source code is governed
 // by the new BSD license.
@@ -13,7 +13,9 @@ package audit
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"path"
 	"reflect"
 	"regexp"
@@ -40,7 +42,9 @@ const (
 	Different
 	Contents
 	About
+	Range
 	Substring
+	Case
 	Match
 	ErrorMatch
 	Implementor
@@ -50,6 +54,7 @@ const (
 	NotEmpty
 	Length
 	Panics
+	PathExists
 	Wait
 	Retry
 	Fail
@@ -65,7 +70,9 @@ var testNames = []string{
 	Different:    "different",
 	Contents:     "contents",
 	About:        "about",
+	Range:        "range",
 	Substring:    "substring",
+	Case:         "case",
 	Match:        "match",
 	ErrorMatch:   "error match",
 	Implementor:  "implementor",
@@ -75,6 +82,7 @@ var testNames = []string{
 	NotEmpty:     "not empty",
 	Length:       "length",
 	Panics:       "panics",
+	PathExists:   "path exists",
 	Wait:         "wait",
 	Retry:        "retry",
 	Fail:         "fail",
@@ -85,6 +93,49 @@ func (t Test) String() string {
 		return testNames[t]
 	}
 	return "invalid"
+}
+
+//--------------------
+// PRINTER
+//--------------------
+
+// Printer allows to switch between different outputs.
+type Printer interface {
+	// Printf prints a formatted information.
+	Printf(format string, args ...interface{})
+}
+
+// printerBackend is the globally printer used during
+// the assertions.
+var (
+	printerBackend Printer = &fmtPrinter{}
+	mux            sync.Mutex
+)
+
+// fmtPrinter uses the standard fmt package for printing.
+type fmtPrinter struct{}
+
+// Printf implements the Printer interface.
+func (p *fmtPrinter) Printf(format string, args ...interface{}) {
+	fmt.Printf(format, args...)
+}
+
+// SetPrinter sets a new global printer and returns the
+// current one.
+func SetPrinter(p Printer) Printer {
+	mux.Lock()
+	defer mux.Unlock()
+	cp := printerBackend
+	printerBackend = p
+	return cp
+}
+
+// backendPrintf uses the printer backend for output. It is used
+// in the types below.
+func backendPrintf(format string, args ...interface{}) {
+	mux.Lock()
+	defer mux.Unlock()
+	printerBackend.Printf(format, args...)
 }
 
 //--------------------
@@ -101,41 +152,78 @@ type Failer interface {
 	Fail(test Test, obtained, expected interface{}, msgs ...string) bool
 }
 
+// Failures collects the collected failures
+// of a validation assertion.
+type Failures interface {
+	// HasErrors returns true, if assertion failures happened.
+	HasErrors() bool
+
+	// Errors returns the so far collected errors.
+	Errors() []error
+
+	// Error returns the collected errors as one error.
+	Error() error
+}
+
 // panicFailer reacts with a panic.
 type panicFailer struct{}
 
-// Logf is specified on the Failer interface.
+// Logf implements the Failer interface.
 func (f panicFailer) Logf(format string, args ...interface{}) {
-	fmt.Printf(format+"\n", args...)
+	backendPrintf(format+"\n", args...)
 }
 
-// Fail is specified on the Failer interface.
+// Fail implements the Failer interface.
 func (f panicFailer) Fail(test Test, obtained, expected interface{}, msgs ...string) bool {
-	var obex string
-	switch test {
-	case True, False, Nil, NotNil, Empty, NotEmpty:
-		obex = fmt.Sprintf("'%v'", obtained)
-	case Implementor, Assignable, Unassignable:
-		obex = fmt.Sprintf("'%v' <> '%v'", ValueDescription(obtained), ValueDescription(expected))
-	case Fail:
-		obex = "fail intended"
-	default:
-		obex = fmt.Sprintf("'%v' <> '%v'", obtained, expected)
+	obex := obexString(test, obtained, expected)
+	panic(failString(test, obex, msgs...))
+}
+
+// validationFailer collects validation errors and additionally.
+type validationFailer struct {
+	mux  sync.Mutex
+	errs []error
+}
+
+// HasErrors implements the Failures interface.
+func (f *validationFailer) HasErrors() bool {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	return len(f.errs) > 0
+}
+
+// Errors implements the Failures interface.
+func (f *validationFailer) Errors() []error {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	return f.errs
+}
+
+// Error implements the Failures interface.
+func (f *validationFailer) Error() error {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	strs := []string{}
+	for i, err := range f.errs {
+		strs = append(strs, fmt.Sprintf("[%d] %v", i, err))
 	}
-	if len(msgs) > 0 {
-		jmsgs := strings.Join(msgs, " ")
-		if test == Fail {
-			panic(fmt.Sprintf("assert failed: %s (%s)", obex, jmsgs))
-		} else {
-			panic(fmt.Sprintf("assert '%s' failed: %s (%s)", test, obex, jmsgs))
-		}
-	} else {
-		if test == Fail {
-			panic(fmt.Sprintf("assert failed: %s", obex))
-		} else {
-			panic(fmt.Sprintf("assert '%s' failed: %s", test, obex))
-		}
-	}
+	return errors.New(strings.Join(strs, " / "))
+}
+
+// Logf implements the Failer interface.
+func (f *validationFailer) Logf(format string, args ...interface{}) {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	backendPrintf(format+"\n", args...)
+}
+
+// Fail implements the Failer interface.
+func (f *validationFailer) Fail(test Test, obtained, expected interface{}, msgs ...string) bool {
+	f.mux.Lock()
+	defer f.mux.Unlock()
+	obex := obexString(test, obtained, expected)
+	f.errs = append(f.errs, errors.New(failString(test, obex, msgs...)))
+	return false
 }
 
 // Failable allows an assertion to signal a fail to an external instance
@@ -152,17 +240,17 @@ type testingFailer struct {
 	shallFail bool
 }
 
-// Logf is specified on the Failer interface.
+// Logf implements the Failer interface.
 func (f testingFailer) Logf(format string, args ...interface{}) {
 	f.mux.Lock()
 	defer f.mux.Unlock()
 	_, file, line, _ := runtime.Caller(3)
 	_, fileName := path.Split(file)
 	prefix := fmt.Sprintf("%s:%d: ", fileName, line)
-	fmt.Printf(prefix+format+"\n", args...)
+	backendPrintf(prefix+format+"\n", args...)
 }
 
-// Fail is specified on the Failer interface.
+// Fail implements the Failer interface.
 func (f testingFailer) Fail(test Test, obtained, expected interface{}, msgs ...string) bool {
 	f.mux.Lock()
 	defer f.mux.Unlock()
@@ -194,7 +282,7 @@ func (f testingFailer) Fail(test Test, obtained, expected interface{}, msgs ...s
 		fmt.Fprintf(buffer, "Description: %s\n", strings.Join(msgs, "\n             "))
 	}
 	fmt.Fprintf(buffer, "--------------------------------------------------------------------------------\n")
-	fmt.Print(buffer)
+	backendPrintf(buffer.String())
 	if f.shallFail {
 		f.failable.FailNow()
 	}
@@ -233,11 +321,19 @@ type Assertion interface {
 	Contents(obtained, full interface{}, msgs ...string) bool
 
 	// About tests if obtained and expected are near to each other
-	// (within the given extend).
-	About(obtained, expected, extend float64, msgs ...string) bool
+	// (within the given extent).
+	About(obtained, expected, extent float64, msgs ...string) bool
+
+	// Range tests if obtained is larger or equal low and lower or
+	// equal high. Allowed are byte, int and float64 for numbers, runes
+	// and strings, or as a length test array, slices, and maps.
+	Range(obtained, low, hight interface{}, msgs ...string) bool
 
 	// Substring tests if obtained is a substring of the full string.
 	Substring(obtained, full string, msgs ...string) bool
+
+	// Case tests if obtained string is uppercase or lowercase.
+	Case(obtained string, upperCase bool, msgs ...string) bool
 
 	// Match tests if the obtained string matches a regular expression.
 	Match(obtained, regex string, msgs ...string) bool
@@ -272,6 +368,9 @@ type Assertion interface {
 	// Panics checks if the passed function panics.
 	Panics(pf func(), msgs ...string) bool
 
+	// PathExists checks if the passed path or file exists.
+	PathExists(path string, msgs ...string) bool
+
 	// Wait until a received signal or a timeout. The signal has
 	// to be the expected value.
 	Wait(sigc <-chan interface{}, expected interface{}, timeout time.Duration, msgs ...string) bool
@@ -296,6 +395,14 @@ func NewPanicAssertion() Assertion {
 	return NewAssertion(&panicFailer{})
 }
 
+// NewValidationAssertion creates a new Assertion instance which collections
+// validation failures. The returned Failures instance allows to test an access
+// them.
+func NewValidationAssertion() (Assertion, Failures) {
+	vf := &validationFailer{}
+	return NewAssertion(vf), vf
+}
+
 // NewTestingAssertion creates a new Assertion instance for use with the testing
 // package. The *testing.T has to be passed as failable, the first argument.
 // shallFail controls if a failing assertion also lets fail the Go test.
@@ -312,12 +419,12 @@ type assertion struct {
 	failer Failer
 }
 
-// Logf is specified on the Assertion interface.
+// Logf implements the Assertion interface.
 func (a *assertion) Logf(format string, args ...interface{}) {
 	a.failer.Logf(format, args...)
 }
 
-// True is specified on the Assertion interface.
+// True implements the Assertion interface.
 func (a *assertion) True(obtained bool, msgs ...string) bool {
 	if !a.IsTrue(obtained) {
 		return a.failer.Fail(True, obtained, true, msgs...)
@@ -325,7 +432,7 @@ func (a *assertion) True(obtained bool, msgs ...string) bool {
 	return true
 }
 
-// False is specified on the Assertion interface.
+// False implements the Assertion interface.
 func (a *assertion) False(obtained bool, msgs ...string) bool {
 	if a.IsTrue(obtained) {
 		return a.failer.Fail(False, obtained, false, msgs...)
@@ -333,7 +440,7 @@ func (a *assertion) False(obtained bool, msgs ...string) bool {
 	return true
 }
 
-// Nil is specified on the Assertion interface.
+// Nil implements the Assertion interface.
 func (a *assertion) Nil(obtained interface{}, msgs ...string) bool {
 	if !a.IsNil(obtained) {
 		return a.failer.Fail(Nil, obtained, nil, msgs...)
@@ -341,7 +448,7 @@ func (a *assertion) Nil(obtained interface{}, msgs ...string) bool {
 	return true
 }
 
-// NotNil is specified on the Assertion interface.
+// NotNil implements the Assertion interface.
 func (a *assertion) NotNil(obtained interface{}, msgs ...string) bool {
 	if a.IsNil(obtained) {
 		return a.failer.Fail(NotNil, obtained, nil, msgs...)
@@ -349,7 +456,7 @@ func (a *assertion) NotNil(obtained interface{}, msgs ...string) bool {
 	return true
 }
 
-// Equal is specified on the Assertion interface.
+// Equal implements the Assertion interface.
 func (a *assertion) Equal(obtained, expected interface{}, msgs ...string) bool {
 	if !a.IsEqual(obtained, expected) {
 		return a.failer.Fail(Equal, obtained, expected, msgs...)
@@ -357,7 +464,7 @@ func (a *assertion) Equal(obtained, expected interface{}, msgs ...string) bool {
 	return true
 }
 
-// Different is specified on the Assertion interface.
+// Different implements the Assertion interface.
 func (a *assertion) Different(obtained, expected interface{}, msgs ...string) bool {
 	if a.IsEqual(obtained, expected) {
 		return a.failer.Fail(Different, obtained, expected, msgs...)
@@ -365,7 +472,7 @@ func (a *assertion) Different(obtained, expected interface{}, msgs ...string) bo
 	return true
 }
 
-// Contents is specified on the Assertion interface.
+// Contents implements the Assertion interface.
 func (a *assertion) Contents(obtained, full interface{}, msgs ...string) bool {
 	contains, err := a.Contains(obtained, full)
 	if err != nil {
@@ -377,15 +484,28 @@ func (a *assertion) Contents(obtained, full interface{}, msgs ...string) bool {
 	return true
 }
 
-// About is specified on the Assertion interface.
-func (a *assertion) About(obtained, expected, extend float64, msgs ...string) bool {
-	if !a.IsAbout(obtained, expected, extend) {
+// About implements the Assertion interface.
+func (a *assertion) About(obtained, expected, extent float64, msgs ...string) bool {
+	if !a.IsAbout(obtained, expected, extent) {
 		return a.failer.Fail(About, obtained, expected, msgs...)
 	}
 	return true
 }
 
-// Substring is specified on the Assertion interface.
+// Range implements the Assertion interface.
+func (a *assertion) Range(obtained, low, high interface{}, msgs ...string) bool {
+	expected := &lowHigh{low, high}
+	inRange, err := a.IsInRange(obtained, low, high)
+	if err != nil {
+		return a.failer.Fail(Range, obtained, expected, "type missmatch: "+err.Error())
+	}
+	if !inRange {
+		return a.failer.Fail(Range, obtained, expected, msgs...)
+	}
+	return true
+}
+
+// Substring implements the Assertion interface.
 func (a *assertion) Substring(obtained, full string, msgs ...string) bool {
 	if !a.IsSubstring(obtained, full) {
 		return a.failer.Fail(Substring, obtained, full, msgs...)
@@ -393,7 +513,18 @@ func (a *assertion) Substring(obtained, full string, msgs ...string) bool {
 	return true
 }
 
-// Match is specified on the Assertion interface.
+// Case implements the Assertion interface.
+func (a *assertion) Case(obtained string, upperCase bool, msgs ...string) bool {
+	if !a.IsCase(obtained, upperCase) {
+		if upperCase {
+			return a.failer.Fail(Case, obtained, strings.ToUpper(obtained), msgs...)
+		}
+		return a.failer.Fail(Case, obtained, strings.ToLower(obtained), msgs...)
+	}
+	return true
+}
+
+// Match implements the Assertion interface.
 func (a *assertion) Match(obtained, regex string, msgs ...string) bool {
 	matches, err := a.IsMatching(obtained, regex)
 	if err != nil {
@@ -405,7 +536,7 @@ func (a *assertion) Match(obtained, regex string, msgs ...string) bool {
 	return true
 }
 
-// ErrorMatch is specified on the Assertion interface.
+// ErrorMatch implements the Assertion interface.
 func (a *assertion) ErrorMatch(obtained error, regex string, msgs ...string) bool {
 	if obtained == nil {
 		return a.failer.Fail(ErrorMatch, nil, regex, "error is nil")
@@ -420,7 +551,7 @@ func (a *assertion) ErrorMatch(obtained error, regex string, msgs ...string) boo
 	return true
 }
 
-// Implementor is specified on the Assertion interface.
+// Implementor implements the Assertion interface.
 func (a *assertion) Implementor(obtained, expected interface{}, msgs ...string) bool {
 	implements, err := a.IsImplementor(obtained, expected)
 	if err != nil {
@@ -432,7 +563,7 @@ func (a *assertion) Implementor(obtained, expected interface{}, msgs ...string) 
 	return implements
 }
 
-// Assignable is specified on the Assertion interface.
+// Assignable implements the Assertion interface.
 func (a *assertion) Assignable(obtained, expected interface{}, msgs ...string) bool {
 	if !a.IsAssignable(obtained, expected) {
 		return a.failer.Fail(Assignable, obtained, expected, msgs...)
@@ -440,7 +571,7 @@ func (a *assertion) Assignable(obtained, expected interface{}, msgs ...string) b
 	return true
 }
 
-// Unassignable is specified on the Assertion interface.
+// Unassignable implements the Assertion interface.
 func (a *assertion) Unassignable(obtained, expected interface{}, msgs ...string) bool {
 	if a.IsAssignable(obtained, expected) {
 		return a.failer.Fail(Unassignable, obtained, expected, msgs...)
@@ -448,7 +579,7 @@ func (a *assertion) Unassignable(obtained, expected interface{}, msgs ...string)
 	return true
 }
 
-// Empty is specified on the Assertion interface.
+// Empty implements the Assertion interface.
 func (a *assertion) Empty(obtained interface{}, msgs ...string) bool {
 	length, err := a.Len(obtained)
 	if err != nil {
@@ -461,7 +592,7 @@ func (a *assertion) Empty(obtained interface{}, msgs ...string) bool {
 	return true
 }
 
-// NotEmpty is specified on the Assertion interface.
+// NotEmpty implements the Assertion interface.
 func (a *assertion) NotEmpty(obtained interface{}, msgs ...string) bool {
 	length, err := a.Len(obtained)
 	if err != nil {
@@ -474,7 +605,7 @@ func (a *assertion) NotEmpty(obtained interface{}, msgs ...string) bool {
 	return true
 }
 
-// Length is specified on the Assertion interface.
+// Length implements the Assertion interface.
 func (a *assertion) Length(obtained interface{}, expected int, msgs ...string) bool {
 	length, err := a.Len(obtained)
 	if err != nil {
@@ -482,12 +613,11 @@ func (a *assertion) Length(obtained interface{}, expected int, msgs ...string) b
 	}
 	if length != expected {
 		return a.failer.Fail(Length, length, expected, msgs...)
-
 	}
 	return true
 }
 
-// Panics is specified on the Assertion interface.
+// Panics implements the Assertion interface.
 func (a *assertion) Panics(pf func(), msgs ...string) bool {
 	if !a.HasPanic(pf) {
 		return a.failer.Fail(Panics, ValueDescription(pf), nil, msgs...)
@@ -495,7 +625,19 @@ func (a *assertion) Panics(pf func(), msgs ...string) bool {
 	return true
 }
 
-// Wait is specified on the Assertion interface.
+// PathExists implements the Assertion interface.
+func (a *assertion) PathExists(obtained string, msgs ...string) bool {
+	valid, err := a.IsValidPath(obtained)
+	if err != nil {
+		return a.failer.Fail(PathExists, obtained, true, err.Error())
+	}
+	if !valid {
+		return a.failer.Fail(PathExists, obtained, true, msgs...)
+	}
+	return true
+}
+
+// Wait implements the Assertion interface.
 func (a *assertion) Wait(sigc <-chan interface{}, expected interface{}, timeout time.Duration, msgs ...string) bool {
 	select {
 	case obtained := <-sigc:
@@ -508,7 +650,7 @@ func (a *assertion) Wait(sigc <-chan interface{}, expected interface{}, timeout 
 	}
 }
 
-// Retry is specified on the Assertion interface.
+// Retry implements the Assertion interface.
 func (a *assertion) Retry(rf func() bool, retries int, pause time.Duration, msgs ...string) bool {
 	start := time.Now()
 	for r := 0; r < retries; r++ {
@@ -522,7 +664,7 @@ func (a *assertion) Retry(rf func() bool, retries int, pause time.Duration, msgs
 	return a.failer.Fail(Retry, info, "successful call", msgs...)
 }
 
-// Fail is specified on the Assertion interface.
+// Fail implements the Assertion interface.
 func (a *assertion) Fail(msgs ...string) bool {
 	return a.failer.Fail(Fail, nil, nil, msgs...)
 }
@@ -561,14 +703,68 @@ func (t Tester) IsEqual(obtained, expected interface{}) bool {
 	return reflect.DeepEqual(obtained, expected)
 }
 
-// IsAbout checks if obtained and expected are to a given extend almost equal.
-func (t Tester) IsAbout(obtained, expected, extend float64) bool {
-	if extend < 0.0 {
-		extend = extend * (-1)
+// IsAbout checks if obtained and expected are to a given extent almost equal.
+func (t Tester) IsAbout(obtained, expected, extent float64) bool {
+	if extent < 0.0 {
+		extent = extent * (-1)
 	}
-	expectedMin := expected - extend
-	expectedMax := expected + extend
-	return obtained >= expectedMin && obtained <= expectedMax
+	low := expected - extent
+	high := expected + extent
+	return low <= obtained && obtained <= high
+}
+
+// IsInRange checks, if obtained is inside the given range. In case of a
+// slice, array, or map it will check agains the length.
+func (t Tester) IsInRange(obtained, low, high interface{}) (bool, error) {
+	// First standard types.
+	switch o := obtained.(type) {
+	case byte:
+		l, lok := low.(byte)
+		h, hok := high.(byte)
+		if !lok && !hok {
+			return false, errors.New("low and/or high are no byte")
+		}
+		return l <= o && o <= h, nil
+	case int:
+		l, lok := low.(int)
+		h, hok := high.(int)
+		if !lok && !hok {
+			return false, errors.New("low and/or high are no int")
+		}
+		return l <= o && o <= h, nil
+	case float64:
+		l, lok := low.(float64)
+		h, hok := high.(float64)
+		if !lok && !hok {
+			return false, errors.New("low and/or high are no float64")
+		}
+		return l <= o && o <= h, nil
+	case rune:
+		l, lok := low.(rune)
+		h, hok := high.(rune)
+		if !lok && !hok {
+			return false, errors.New("low and/or high are no rune")
+		}
+		return l <= o && o <= h, nil
+	case string:
+		l, lok := low.(string)
+		h, hok := high.(string)
+		if !lok && !hok {
+			return false, errors.New("low and/or high are no string")
+		}
+		return l <= o && o <= h, nil
+	}
+	// Now check the collection types.
+	ol, err := t.Len(obtained)
+	if err != nil {
+		return false, errors.New("no valid type with a length")
+	}
+	l, lok := low.(int)
+	h, hok := high.(int)
+	if !lok && !hok {
+		return false, errors.New("low and/or high are no int")
+	}
+	return l <= ol && ol <= h, nil
 }
 
 // Contains checks if the obtained type is matching to the full type and
@@ -592,12 +788,20 @@ func (t Tester) Contains(obtained, full interface{}) (bool, error) {
 		}
 		return false, nil
 	}
-	return false, fmt.Errorf("full value is no string, array, or slice")
+	return false, errors.New("full value is no string, array, or slice")
 }
 
 // IsSubstring checks if obtained is a substring of the full string.
 func (t Tester) IsSubstring(obtained, full string) bool {
 	return strings.Contains(full, obtained)
+}
+
+// IsCase checks if the obtained string is uppercase or lowercase.
+func (t Tester) IsCase(obtained string, upperCase bool) bool {
+	if upperCase {
+		return obtained == strings.ToUpper(obtained)
+	}
+	return obtained == strings.ToLower(obtained)
 }
 
 // IsMatching checks if the obtained string matches a regular expression.
@@ -655,9 +859,28 @@ func (t Tester) HasPanic(pf func()) (ok bool) {
 	return false
 }
 
+// IsValidPath checks if the given directory or
+// file path exists.
+func (t Tester) IsValidPath(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
+}
+
 //--------------------
 // HELPER
 //--------------------
+
+// lowHigh transports the expected borders of a range test.
+type lowHigh struct {
+	low  interface{}
+	high interface{}
+}
 
 // ValueDescription returns a description of a value as string.
 func ValueDescription(value interface{}) string {
@@ -686,6 +909,40 @@ func MakeSigChan() chan interface{} {
 // lenable is an interface for the Len() mehod.
 type lenable interface {
 	Len() int
+}
+
+// obexString constructs a descriptive sting matching
+// to test, obtained, and expected value.
+func obexString(test Test, obtained, expected interface{}) string {
+	switch test {
+	case True, False, Nil, NotNil, Empty, NotEmpty:
+		return fmt.Sprintf("'%v'", obtained)
+	case Implementor, Assignable, Unassignable:
+		return fmt.Sprintf("'%v' <> '%v'", ValueDescription(obtained), ValueDescription(expected))
+	case Range:
+		lh := expected.(*lowHigh)
+		return fmt.Sprintf("not '%v' <= '%v' <= '%v'", lh.low, obtained, lh.high)
+	case Fail:
+		return "fail intended"
+	default:
+		return fmt.Sprintf("'%v' <> '%v'", obtained, expected)
+	}
+}
+
+// failString constructs a fail string for panics or
+// validition errors.
+func failString(test Test, obex string, msgs ...string) string {
+	var out string
+	if test == Fail {
+		out = fmt.Sprintf("assert failed: %s", obex)
+	} else {
+		out = fmt.Sprintf("assert '%s' failed: %s", test, obex)
+	}
+	jmsgs := strings.Join(msgs, " ")
+	if len(jmsgs) > 0 {
+		out += " (" + jmsgs + ")"
+	}
+	return out
 }
 
 // EOF

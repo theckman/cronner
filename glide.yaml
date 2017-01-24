@@ -9,5 +9,8 @@ import:
   version: ^4.15.1
   subpackages:
   - logger
+- package: github.com/aristanetworks/goarista
+  subpackages:
+  - monotime
 testImport:
 - package: gopkg.in/check.v1
