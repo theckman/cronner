@@ -19,6 +19,8 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+const testCronnerUUID = "02a10ce3-e834-4285-b1ad-272460541f08"
+
 func Test(t *testing.T) { TestingT(t) }
 
 type TestSuite struct {
@@ -74,6 +76,36 @@ func (t *TestSuite) TearDownTest(c *C) {
 	t.l.Close()
 
 	time.Sleep(time.Millisecond * 10)
+}
+
+func (*TestSuite) Test_setEnv_and_parseParentEnv(c *C) {
+	var event, metric []string
+
+	defer unsetEnv()
+
+	dummyHandler := &cmdHandler{
+		uuid: testCronnerUUID,
+		opts: &binArgs{
+			EventGroup: "testEventGroup",
+			Group:      "testGroup",
+			Namespace:  "testNamespace",
+			Label:      "testLabel",
+		},
+	}
+
+	unsetEnv()
+	setEnv(dummyHandler)
+	event, metric = parseEnvForParent()
+
+	c.Assert(len(event), Equals, 2)
+	c.Assert(len(metric), Equals, 3)
+
+	c.Check(event[0], Equals, "cronner_parent_uuid:"+testCronnerUUID)
+	c.Check(event[1], Equals, "cronner_parent_event_group:"+dummyHandler.opts.EventGroup)
+
+	c.Check(metric[0], Equals, "cronner_parent_group:"+dummyHandler.opts.Group)
+	c.Check(metric[1], Equals, "cronner_parent_namespace:"+dummyHandler.opts.Namespace)
+	c.Check(metric[2], Equals, "cronner_parent_label:"+dummyHandler.opts.Label)
 }
 
 //

@@ -33,6 +33,24 @@ func execCmd(cmd *exec.Cmd, c chan<- error) {
 	close(c)
 }
 
+func setEnv(hndlr *cmdHandler) {
+	os.Setenv("CRONNER_PARENT_UUID", hndlr.uuid)
+	os.Setenv("CRONNER_PARENT_EVENT_GROUP", hndlr.opts.EventGroup)
+	os.Setenv("CRONNER_PARENT_GROUP", hndlr.opts.Group)
+	os.Setenv("CRONNER_PARENT_NAMESPACE", hndlr.opts.Namespace)
+	os.Setenv("CRONNER_PARENT_LABEL", hndlr.opts.Label)
+}
+
+func unsetEnv() {
+	for _, k := range cronnerEventEnvVars {
+		os.Unsetenv(k)
+	}
+
+	for _, k := range cronnerMetricEnvVars {
+		os.Unsetenv(k)
+	}
+}
+
 // handleCommand is a function that handles the entire process of running a command:
 //
 // * file-based locking for the command
@@ -46,6 +64,12 @@ func execCmd(cmd *exec.Cmd, c chan<- error) {
 // * (int) return code
 // * (float64) run time
 func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
+	unsetEnv()
+
+	// set the environment for this invocation of cronner
+	setEnv(hndlr)
+	defer unsetEnv()
+
 	if hndlr.opts.AllEvents {
 		// emit a DD event to indicate we are starting the job
 		emitEvent(fmt.Sprintf("Cron %v starting on %v", hndlr.opts.Label, hndlr.hostname), fmt.Sprintf("UUID: %v\n", hndlr.uuid), hndlr.opts.Label, "info", hndlr)
@@ -210,6 +234,10 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		tags = append(tags, fmt.Sprintf("cronner_group:%s", hndlr.opts.Group))
 	}
 
+	if hndlr.opts.Parent && len(hndlr.parentMetricTags) > 0 {
+		tags = append(tags, hndlr.parentMetricTags...)
+	}
+
 	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), monotonicRtMs, tags)
 	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), tags)
 
@@ -303,6 +331,10 @@ func emitEvent(title, body, label, alertType string, hndlr *cmdHandler) {
 
 	if len(hndlr.opts.EventGroup) > 0 {
 		tags = append(tags, fmt.Sprintf("cronner_group:%s", hndlr.opts.EventGroup))
+	}
+
+	if hndlr.opts.Parent && len(hndlr.parentEventTags) > 0 {
+		tags = append(tags, hndlr.parentEventTags...)
 	}
 
 	hndlr.gs.Event(title, body, fields, tags)
