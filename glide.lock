@@ -1,6 +1,10 @@
-hash: 4e041a56797b8a494aa92328b59e063419cd6426fe21df629c496155754ffd9c
-updated: 2016-12-02T01:52:23.883018527-08:00
+hash: 9ba8d4e7a90e3ed60721e3559e50f164e3ff6ebe607eea508ea37cb040bf5a04
+updated: 2017-01-23T21:45:47.139447219-08:00
 imports:
+- name: github.com/aristanetworks/goarista
+  version: b0e49c238c066506cefd63181b73b282ccd84708
+  subpackages:
+  - monotime
 - name: github.com/codeskyblue/go-uuid
   version: 952abbca900b023c1a80bc522ff4795db50d9d6c
 - name: github.com/jessevdk/go-flags
@@ -10,7 +14,7 @@ imports:
 - name: github.com/theckman/go-flock
   version: a93fcf752ad6adea9207699d9ac3756e662126b4
 - name: github.com/tideland/golib
-  version: 185b9005c440962b2f4f4896045147ca204065cb
+  version: 596bcd1b4fc4e5f69bd3bd2fc70b7dce49be5daf
   subpackages:
   - logger
 testImports:

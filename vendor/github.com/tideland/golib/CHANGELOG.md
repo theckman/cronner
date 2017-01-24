@@ -1,5 +1,26 @@
 # Tideland Go Library
 
+## 2017-01-18
+
+- *audit.Generator* now provides *OneDurationOf()*
+  and *SleepOneOf()*
+
+## 2017-01-13
+
+- *collections.RingBuffer* now provides *Peek()*
+
+## 2017-01-07
+
+- *etc.Etc* now can write to an *io.Reader*
+
+## 2016-12-11
+
+- Added asserts for *range*, *case*, and *path exists*
+
+## 2016-12-07
+
+- Added *ValidationAssertion* to *audit*
+
 ## 2016-11-23
 
 - Fixed an error in *identifier* generation
