@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
@@ -20,11 +21,59 @@ import (
 const Version = "0.4.2"
 
 type cmdHandler struct {
-	gs       *godspeed.Godspeed
-	opts     *binArgs
-	cmd      *exec.Cmd
-	uuid     string
-	hostname string
+	gs               *godspeed.Godspeed
+	opts             *binArgs
+	cmd              *exec.Cmd
+	uuid             string
+	hostname         string
+	parentEventTags  []string
+	parentMetricTags []string
+}
+
+var cronnerEventEnvVars = []string{
+	"CRONNER_PARENT_UUID",
+	"CRONNER_PARENT_EVENT_GROUP",
+}
+
+var cronnerMetricEnvVars = []string{
+	"CRONNER_PARENT_GROUP",
+	"CRONNER_PARENT_NAMESPACE",
+	"CRONNER_PARENT_LABEL",
+}
+
+func parseEnv(vars []string) []string {
+	if len(vars) == 0 {
+		return nil
+	}
+
+	tags := make([]string, len(vars))
+
+	var count int
+
+	for i, key := range vars {
+		if val := os.Getenv(key); len(val) > 0 {
+			tags[i] = fmt.Sprintf("%s:%s", strings.ToLower(key), val)
+			count++
+		}
+	}
+
+	if count == 0 {
+		return nil
+	}
+
+	return tags[0:count]
+}
+
+func parseEnvForParent() (eventTags, metricTags []string) {
+	// get CRONNER_PARENT_UUID to see if we're a parent process
+	if os.Getenv(cronnerEventEnvVars[0]) == "" {
+		return
+	}
+
+	eventTags = parseEnv(cronnerEventEnvVars)
+	metricTags = parseEnv(cronnerMetricEnvVars)
+
+	return
 }
 
 func main() {
@@ -72,6 +121,8 @@ func main() {
 		uuid:     uuid.New(),
 		cmd:      exec.Command(opts.Cmd, opts.CmdArgs...),
 	}
+
+	handler.parentEventTags, handler.parentMetricTags = parseEnvForParent()
 
 	ret, _, _, err := handleCommand(handler)
 
