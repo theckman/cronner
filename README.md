@@ -32,12 +32,12 @@ Application Options:
   -G, --event-group=<group>        emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics
   -g, --group=<group>              emit a cronner_group:<group> tag with statsd metrics
   -k, --lock                       lock based on label so that multiple commands with the same label can not run concurrently
-  -l, --label=                     name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase
-                                   it
+  -l, --label=                     name for cron job to be used in statsd emissions and DogStatsd events. alphanumeric only; cronner will lowercase it
       --log-path=                  where to place the log files for command output (path for -F/--log-fail output) (default: /var/log/cronner)
   -L, --log-level=                 set the level at which to log at [none|error|info|debug] (default: error)
   -N, --namespace=                 namespace for statsd emissions, value is prepended to metric name by statsd client (default: cronner)
   -p, --passthru                   passthru stdout/stderr to controlling tty
+  -P, --use-parent                 if cronner invocation is runner under cronner, emit the parental values as tags
   -s, --sensitive                  specify whether command output may contain sensitive details, this only avoids it being printed to stderr
   -V, --version                    print the version string and exit
   -w, --warn-after=N               emit a warning event every N seconds if the job hasn't finished, set to 0 to disable (default: 0)
@@ -58,6 +58,22 @@ $ cronner -l sleepytime -- /bin/sleep 10
 
 To note, `--` in the command line arguments tells cronner to stop parsing CLi flags. It then grabs the rest of the arguments as the command to execute.
 
+#### Environment Variables
+The `cronner` process sets a few environment variables for subprocesses to consume if they wish.
+The `CRONNER_PARENT_UUID` environment variable is the canonical way for determining whether or not we are running under `cronner`.
+
+|Variable|Description|
+|---------|-----------|
+|`CRONNER_PARENT_UUID`|this is the UUID being used by the parent `cronner` process for its events; use this being set to determine if running under cronner|
+|`CRONNER_PARENT_EVENT_GROUP`|this is the event group used by the parent process for its events|
+|`CRONNER_PARENT_GROUP`|this is the group used by the parent process for its metrics|
+|`CRONNER_PARENT_NAMESPACE`|this is the namespace used by the parent process for its metrics|
+|`CRONNER_PARENT_LABEL`|this is the label used by the parent process for its metrics|
+
+If you invoke the `cronner` command with the `-P/--use-parent` flag it will look for these variables and tag the events and metrics emissions
+with their values. It lowercases the variable name before emitting the tag, so `CRONNER_PARENT_GROUP` becomes `cronner_parent_group`.
+
+#### DogStatsd Emissions
 If you were to have a UDP listener on port 8125 on localhost, the statsd emissions would look something like this:
 
 ```
