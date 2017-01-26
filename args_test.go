@@ -64,7 +64,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-V",
 	}
 
-	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
+	verOut := fmt.Sprintf("cronner v%s built with %s\nCopyright 2017 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
 
 	output, err = args.parse(cli)
 	c.Assert(err, IsNil)
@@ -122,7 +122,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-F",
 		"-G", "test_group",
 		"-g", "metric_group",
-		"-H", 'test_host',
+		"-H", "test_host",
 		"-k",
 		"-l", "test",
 		"-L", "info",
@@ -171,7 +171,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--log-fail",
 		"--event-group", "test_group",
 		"--group", "metric_group",
-		"--statsd-host", 'test_host',
+		"--statsd-host", "test_host",
 		"--lock",
 		"--label", "test",
 		"--log-path", "/var/log/testcronner",
@@ -218,7 +218,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--group=metric_group",
 		"--label=test",
 		"--log-path=/var/log/testcronner",
-		"--statsd-host=test_host"
+		"--statsd-host=test_host",
 		"--log-level=info",
 		"--namespace=testcronner",
 		"--warn-after=42",
