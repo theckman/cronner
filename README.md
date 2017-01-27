@@ -2,9 +2,13 @@
 [![TravisCI Build Status](https://img.shields.io/travis/PagerDuty/cronner/master.svg?style=flat)](https://travis-ci.org/PagerDuty/cronner)
 
 ### Deprecation Notice
-This repository is no longer maintained! If you'd like to check out the latest version of the source code, report any issues, contribute any improvements, or download the latest release, please do so from the new `cronner` repository:
+This repository is deprecated;  No further Issues or Pull Requests will be considered or approved.
+
+Further interest should be directed to the new `cronner` repository;  If you'd like to check out the latest version of the source code, report any issues, contribute any improvements, or download the latest release, please do so at:
 
 * https://github.com/theckman/cronner
+
+## Overview
 
 `cronner` is a command line utility to that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to ran, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for very simple, and dumb, job semaphore.
 
