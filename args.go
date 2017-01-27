@@ -21,6 +21,7 @@ type binArgs struct {
 	CmdArgs     []string // this is not a command line flag, also parsed results
 	LockDir     string   `short:"d" long:"lock-dir" default:"/var/lock" description:"the directory where lock files will be placed"`
 	AllEvents   bool     `short:"e" long:"event" description:"emit a start and end datadog event"`
+	StatsdHost  string   `short:"H" long:"statsd-host" value-name:"<host>" description:"destination host to send datadog metrics"`
 	FailEvent   bool     `short:"E" long:"event-fail" description:"only emit an event on failure"`
 	LogFail     bool     `short:"F" long:"log-fail" description:"when a command fails, log its full output (stdout/stderr) to the log directory using the UUID as the filename"`
 	EventGroup  string   `short:"G" long:"event-group" value-name:"<group>" description:"emit a cronner_group:<group> tag with Datadog events, does not get sent with statsd metrics"`
@@ -70,7 +71,7 @@ func (a *binArgs) parse(args []string) (string, error) {
 	}
 
 	if a.Version {
-		out := fmt.Sprintf("cronner v%s built with %s\nCopyright 2015 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
+		out := fmt.Sprintf("cronner v%s built with %s\nCopyright 2017 PagerDuty, Inc.; released under the BSD 3-Clause License\n", Version, runtime.Version())
 		return out, nil
 	}
 

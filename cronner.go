@@ -16,7 +16,7 @@ import (
 )
 
 // Version is the program's version string
-const Version = "0.2.5"
+const Version = "0.2.6"
 
 type cmdHandler struct {
 	gs       *godspeed.Godspeed
@@ -46,7 +46,12 @@ func main() {
 	}
 
 	// build a Godspeed client
-	gs, err := godspeed.NewDefault()
+	var gs *godspeed.Godspeed
+	if opts.StatsdHost == "" {
+		gs, err = godspeed.NewDefault()
+	} else {
+		gs, err = godspeed.New(opts.StatsdHost, godspeed.DefaultPort, false)
+	}
 
 	// make sure nothing went wrong with Godspeed
 	if err != nil {
