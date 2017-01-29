@@ -125,6 +125,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-F",
 		"-G", "test_group",
 		"-g", "metric_group",
+		"-H", "test_host",
 		"-k",
 		"-l", "test",
 		"-L", "info",
@@ -151,6 +152,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LogFail, Equals, true)
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Group, Equals, "metric_group")
+	c.Check(args.StatsdHost, Equals, "test_host")
 	c.Check(args.Lock, Equals, true)
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogLevel, Equals, "info")
@@ -176,6 +178,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--log-fail",
 		"--event-group", "test_group",
 		"--group", "metric_group",
+		"--statsd-host", "test_host",
 		"--lock",
 		"--label", "test",
 		"--log-path", "/var/log/testcronner",
@@ -200,6 +203,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LogFail, Equals, true)
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Group, Equals, "metric_group")
+	c.Check(args.StatsdHost, Equals, "test_host")
 	c.Check(args.Lock, Equals, true)
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
@@ -223,6 +227,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--lock-dir=/var/testlock",
 		"--event-group=test_group",
 		"--group=metric_group",
+		"--statsd-host=test_host",
 		"--label=test",
 		"--log-path=/var/log/testcronner",
 		"--log-level=info",
@@ -240,6 +245,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LockDir, Equals, "/var/testlock")
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Group, Equals, "metric_group")
+	c.Check(args.StatsdHost, Equals, "test_host")
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
 	c.Check(args.LogLevel, Equals, "info")
