@@ -110,6 +110,10 @@ with `cronner`.
 ## Contributors
 * Tim Heckman
 * Thomas Dziedzic
+* Alex Eftimie
+* Anthony O'Brien
+* Alex Hill
+* Andre Cloutier
 
 ## Development
 * set up your workspace as per the instructions for standard Go development
