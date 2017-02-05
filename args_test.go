@@ -109,6 +109,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Parent, Equals, false)
 	c.Check(args.Passthru, Equals, false)
 	c.Check(args.Sensitive, Equals, false)
+	c.Check(args.Tags, HasLen, 0)
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(0))
 	c.Check(args.WaitSeconds, Equals, uint64(0))
@@ -133,6 +134,8 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"-P",
 		"-p",
 		"-s",
+		"-t", "tag1",
+		"-t", "tag2",
 		"-w", "42",
 		"-W", "84",
 		"--", "/bin/true",
@@ -160,6 +163,9 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Parent, Equals, true)
 	c.Check(args.Passthru, Equals, true)
 	c.Check(args.Sensitive, Equals, true)
+	c.Assert(args.Tags, HasLen, 2)
+	c.Check(args.Tags[0], Equals, "tag1")
+	c.Check(args.Tags[1], Equals, "tag2")
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
@@ -187,6 +193,8 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--use-parent",
 		"--passthru",
 		"--sensitive",
+		"--tag", "tag1",
+		"--tag", "tag2",
 		"--warn-after", "42",
 		"--wait-secs", "84",
 		"--", "/bin/true",
@@ -212,6 +220,9 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.Parent, Equals, true)
 	c.Check(args.Passthru, Equals, true)
 	c.Check(args.Sensitive, Equals, true)
+	c.Assert(args.Tags, HasLen, 2)
+	c.Check(args.Tags[0], Equals, "tag1")
+	c.Check(args.Tags[1], Equals, "tag2")
 	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
@@ -232,6 +243,8 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--log-path=/var/log/testcronner",
 		"--log-level=info",
 		"--namespace=testcronner",
+		"--tag=tag1",
+		"--tag=tag2",
 		"--warn-after=42",
 		"--wait-secs=84",
 		"--", "/bin/true",
@@ -250,10 +263,61 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
 	c.Check(args.LogLevel, Equals, "info")
 	c.Check(args.Namespace, Equals, "testcronner")
+	c.Assert(args.Tags, HasLen, 2)
+	c.Check(args.Tags[0], Equals, "tag1")
+	c.Check(args.Tags[1], Equals, "tag2")
+	c.Check(args.Version, Equals, false)
 	c.Check(args.WarnAfter, Equals, uint64(42))
 	c.Check(args.WaitSeconds, Equals, uint64(84))
 	c.Check(args.Cmd, Equals, "/bin/true")
 	c.Check(len(args.CmdArgs), Equals, 0)
+
+	//
+	// assert that optional tags are validated
+	//
+	args = &binArgs{}
+	cli = []string{
+		Arg0,
+		"-l", "test",
+		"-t", "世界_hello:valid",
+		"-t", "invalid^tag",
+		"--", "/bin/true",
+	}
+
+	output, err = args.parse(cli)
+	c.Assert(err, Not(IsNil))
+	c.Check(len(output), Equals, 0)
+	c.Check(err.Error(), Equals, "tag 'invalid^tag' is invalid, it can only be alphanumeric with underscores, periods, colons, minuses and slashes")
+
+	args = &binArgs{}
+	cli = []string{
+		Arg0,
+		"-l", "test",
+		"-t", "_invalid:tag",
+		"--", "/bin/true",
+	}
+
+	output, err = args.parse(cli)
+	c.Assert(err, Not(IsNil))
+	c.Check(len(output), Equals, 0)
+	c.Check(err.Error(), Equals, "tag '_invalid:tag' is invalid, it must start with a letter")
+
+	args = &binArgs{}
+	tag := "tag_exceeds_200_chars_7eUJgOC2VnpCSsgcgq66Aj5cjiOCxvu736AQHu2zWy0" +
+		"booxAh2B7vrTfbb59w6YovAZ1HzSGfGxVomAzsAhxVUkSrfnBWb6Xs5WpV7RQAGqu" +
+		"uCIvPOv5rymEeJaefyligXrsN2VBlSQpXD5M3540VvK90JauGuqIkaCOQeKU2rgrF" +
+		"NU632ShyW3WOGxipoKuVGpKyvnN"
+	cli = []string{
+		Arg0,
+		"-l", "test",
+		"-t", tag,
+		"--", "/bin/true",
+	}
+
+	output, err = args.parse(cli)
+	c.Assert(err, Not(IsNil))
+	c.Check(len(output), Equals, 0)
+	c.Check(err.Error(), Equals, fmt.Sprintf("tag '%v' is invalid, tags must be less than 200 characters", tag))
 
 	//
 	// argument parsing regression tests
