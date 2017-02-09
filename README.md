@@ -40,6 +40,7 @@ Application Options:
   -p, --passthru                   passthru stdout/stderr to controlling tty
   -P, --use-parent                 if cronner invocation is runner under cronner, emit the parental values as tags
   -s, --sensitive                  specify whether command output may contain sensitive details, this only avoids it being printed to stderr
+  -t, --tag=                       additional tags to add to datadog events and metrics (can be used multiple times), either <key>:<value> or <string> format
   -V, --version                    print the version string and exit
   -w, --warn-after=N               emit a warning event every N seconds if the job hasn't finished, set to 0 to disable (default: 0)
   -W, --wait-secs=                 how long to wait for the file lock for (default: 0)

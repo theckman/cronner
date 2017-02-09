@@ -238,6 +238,10 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		tags = append(tags, hndlr.parentMetricTags...)
 	}
 
+	if len(hndlr.opts.Tags) > 0 {
+		tags = append(tags, hndlr.opts.Tags...)
+	}
+
 	hndlr.gs.Timing(fmt.Sprintf("%v.time", hndlr.opts.Label), monotonicRtMs, tags)
 	hndlr.gs.Gauge(fmt.Sprintf("%v.exit_code", hndlr.opts.Label), float64(ret), tags)
 
@@ -335,6 +339,10 @@ func emitEvent(title, body, label, alertType string, hndlr *cmdHandler) {
 
 	if hndlr.opts.Parent && len(hndlr.parentEventTags) > 0 {
 		tags = append(tags, hndlr.parentEventTags...)
+	}
+
+	if len(hndlr.opts.Tags) > 0 {
+		tags = append(tags, hndlr.opts.Tags...)
 	}
 
 	hndlr.gs.Event(title, body, fields, tags)

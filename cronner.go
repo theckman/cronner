@@ -18,7 +18,7 @@ import (
 )
 
 // Version is the program's version string
-const Version = "0.6.1"
+const Version = "0.7.0"
 
 type cmdHandler struct {
 	gs               *godspeed.Godspeed

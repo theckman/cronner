@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"unicode"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/tideland/golib/logger"
@@ -42,6 +43,7 @@ type binArgs struct {
 	Passthru    bool     `short:"p" long:"passthru" description:"passthru stdout/stderr to controlling tty"`
 	Parent      bool     `short:"P" long:"use-parent" description:"if cronner invocation is runner under cronner, emit the parental values as tags"`
 	Sensitive   bool     `short:"s" long:"sensitive" description:"specify whether command output may contain sensitive details, this only avoids it being printed to stderr"`
+	Tags        []string `short:"t" long:"tag" description:"additional tags to add to datadog events and metrics (can be used multiple times), either <key>:<value> or <string> format"`
 	Version     bool     `short:"V" long:"version" description:"print the version string and exit"`
 	WarnAfter   uint64   `short:"w" long:"warn-after" default:"0" value-name:"N" description:"emit a warning event every N seconds if the job hasn't finished, set to 0 to disable"`
 	WaitSeconds uint64   `short:"W" long:"wait-secs" default:"0" description:"how long to wait for the file lock for"`
@@ -51,6 +53,7 @@ type binArgs struct {
 }
 
 var argsLabelRegex = regexp.MustCompile(`^[a-zA-Z0-9_\. ]+$`)
+var argsTagsRegex = regexp.MustCompile(`^[\p{L}\d\_\-\.\:\\\/]+$`)
 
 // parse function configures the go-flags parser and runs it
 // it also does some light input validation
@@ -90,6 +93,19 @@ func (a *binArgs) parse(args []string) (string, error) {
 
 	if !argsLabelRegex.MatchString(a.Label) {
 		return "", fmt.Errorf("cron label '%v' is invalid, it can only be alphanumeric with underscores, periods, and spaces", a.Label)
+	}
+
+	// Make sure tags are valid -- http://docs.datadoghq.com/guides/metrics/#tags
+	for _, tag := range a.Tags {
+		if !argsTagsRegex.MatchString(tag) {
+			return "", fmt.Errorf("tag '%v' is invalid, it can only be alphanumeric with underscores, periods, colons, minuses and slashes", tag)
+		}
+		if !unicode.IsLetter([]rune(tag)[0]) {
+			return "", fmt.Errorf("tag '%v' is invalid, it must start with a letter", tag)
+		}
+		if len([]rune(tag)) > 200 {
+			return "", fmt.Errorf("tag '%v' is invalid, tags must be less than 200 characters", tag)
+		}
 	}
 
 	if len(a.Args.Command) == 0 {
