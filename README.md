@@ -1,15 +1,15 @@
 # cronner
 [![TravisCI Build Status](https://img.shields.io/travis/theckman/cronner/master.svg?style=flat)](https://travis-ci.org/theckman/cronner)
 
-`cronner` is a command line utility to that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to ran, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for very simple, and dumb, job semaphore.
+`cronner` is a command line utility that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to run, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for a very simple and dumb job semaphore.
 
-The utility also supports emitting [DogStatsD Events](http://docs.datadoghq.com/guides/dogstatsd/#events) under the following occasions:
+The utility also supports emitting [DogStatsD Events](http://docs.datadoghq.com/guides/dogstatsd/#events) on:
 
 * job start and job finish
 * job finish if the job failed
 * if the job is taking too long to finish running
 
-If your statsd agent isn't DogStatsD-compliant, I'm not sure what the behavior will be if you an emit an event to it.
+If your statsd agent isn't DogStatsD-compliant, I'm not sure what the behavior will be if you emit an event to it.
 
 For the finish DogStatsD event, the return code and output of the command are provided in the event body. If the output is too long, it is truncated. This output can optionally be saved to disk only if the job fails for later inspection.
 
@@ -58,7 +58,7 @@ To run the command `/bin/sleep 10` and emit the stats as `cronner.sleeptyime.tim
 $ cronner -l sleepytime -- /bin/sleep 10
 ```
 
-To note, `--` in the command line arguments tells cronner to stop parsing CLi flags. It then grabs the rest of the arguments as the command to execute.
+Note that `--` in the command line arguments tells cronner to stop parsing CLI flags. It then grabs the rest of the arguments as the command to execute.
 
 #### Environment Variables
 The `cronner` process sets a few environment variables for subprocesses to consume if they wish.
@@ -66,11 +66,11 @@ The `CRONNER_PARENT_UUID` environment variable is the canonical way for determin
 
 |Variable|Description|
 |---------|-----------|
-|`CRONNER_PARENT_UUID`|this is the UUID being used by the parent `cronner` process for its events; use this being set to determine if running under cronner|
-|`CRONNER_PARENT_EVENT_GROUP`|this is the event group used by the parent process for its events|
-|`CRONNER_PARENT_GROUP`|this is the group used by the parent process for its metrics|
-|`CRONNER_PARENT_NAMESPACE`|this is the namespace used by the parent process for its metrics|
-|`CRONNER_PARENT_LABEL`|this is the label used by the parent process for its metrics|
+|`CRONNER_PARENT_UUID`|UUID being used by the parent `cronner` process for its events; use this being set to determine if running under cronner|
+|`CRONNER_PARENT_EVENT_GROUP`|event group used by the parent process for its events|
+|`CRONNER_PARENT_GROUP`|group used by the parent process for its metrics|
+|`CRONNER_PARENT_NAMESPACE`|namespace used by the parent process for its metrics|
+|`CRONNER_PARENT_LABEL`|label used by the parent process for its metrics|
 
 If you invoke the `cronner` command with the `-P/--use-parent` flag it will look for these variables and tag the events and metrics emissions
 with their values. It lowercases the variable name before emitting the tag, so `CRONNER_PARENT_GROUP` becomes `cronner_parent_group`.
