@@ -115,6 +115,7 @@ with `cronner`.
 * Anthony O'Brien
 * Alex Hill
 * Andre Cloutier
+* R.T. Lechow
 
 ## Development
 * set up your workspace as per the instructions for standard Go development
