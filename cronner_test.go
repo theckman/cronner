@@ -10,8 +10,8 @@ import (
 	"math/rand"
 	"net"
 	"path"
+	"strconv"
 	"testing"
-	"time"
 
 	"github.com/PagerDuty/godspeed"
 	"github.com/codeskyblue/go-uuid"
@@ -50,12 +50,6 @@ func (t *TestSuite) SetUpSuite(c *C) {
 		},
 	}
 
-	var err error
-
-	t.h.gs, err = godspeed.NewDefault()
-	c.Assert(err, IsNil)
-	t.h.gs.SetNamespace("cronner")
-
 	t.lockFile = path.Join(t.h.opts.LockDir, "cronner-testCmd.lock")
 }
 
@@ -63,19 +57,41 @@ func (t *TestSuite) TearDownSuite(c *C) {
 	t.h.gs.Conn.Close()
 }
 
+func addrStrToHostPort(addr string) (string, int, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "", 0, err
+	}
+
+	portNum, err := strconv.ParseInt(port, 10, 64)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return host, int(portNum), nil
+}
+
 func (t *TestSuite) SetUpTest(c *C) {
-	t.l, t.ctrl, t.out = buildListener(8125)
+	// using port 0 tells the kernel to give us a random (ephemeral) port
+	t.l, t.ctrl, t.out = buildListener(0)
 
 	// this goroutine will get cleaned up by the
 	// TearDownTest function
 	go listener(t.l, t.ctrl, t.out)
+
+	host, port, err := addrStrToHostPort(t.l.LocalAddr().String())
+	c.Assert(err, IsNil)
+
+	gs, err := godspeed.New(host, port, true)
+	c.Assert(err, IsNil)
+
+	gs.SetNamespace("cronner")
+	t.h.gs = gs
 }
 
 func (t *TestSuite) TearDownTest(c *C) {
 	close(t.ctrl)
 	t.l.Close()
-
-	time.Sleep(time.Millisecond * 10)
 }
 
 func (*TestSuite) Test_setEnv_and_parseParentEnv(c *C) {
