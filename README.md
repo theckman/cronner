@@ -1,7 +1,10 @@
 # cronner
 [![TravisCI Build Status](https://img.shields.io/travis/theckman/cronner/master.svg?style=flat)](https://travis-ci.org/theckman/cronner)
 
-`cronner` is a command line utility that wraps periodic (cron) jobs for statistics gathering and success monitoring. The amount of time the command took to run, as well as the return code, are emitted as vanilla statsd metrics to port 8125. It also implements file-level locking for a very simple and dumb job semaphore.
+`cronner` is a command line utility that wraps periodic (cron) jobs for statistics gathering and success monitoring.
+Metrics like the amount of time the command took to run, as well as the command's return code, are emitted as vanilla statsd metrics to port 8125.
+It also implements file-level locking for a very simple and dumb job semaphore. This utility doesn't concern itself with the scheduling of jobs,
+and instead expects that it will be invoked by something like `cron`, `at`, or manually by an operator.
 
 The utility also supports emitting [DogStatsD Events](http://docs.datadoghq.com/guides/dogstatsd/#events) on:
 
@@ -9,13 +12,21 @@ The utility also supports emitting [DogStatsD Events](http://docs.datadoghq.com/
 * job finish if the job failed
 * if the job is taking too long to finish running
 
-If your statsd agent isn't DogStatsD-compliant, I'm not sure what the behavior will be if you emit an event to it.
+While there are no reports of issues having come up, if your statsd agent isn't DogStatsD-compliant its behavior
+may be undefined if you try to emit events or attach tags to metrics.
 
 For the finish DogStatsD event, the return code and output of the command are provided in the event body. If the output is too long, it is truncated. This output can optionally be saved to disk only if the job fails for later inspection.
 
+## Project History
+`cronner` was originally developed as an internal application at PagerDuty and was subsequently open-sourced. The original repository can be found here:
+[PagerDuty/cronner](https://github.com/PagerDuty/cronner). After that project became unmaintained, this fork was created to continue the development
+and support of cronner.
+
+The PagerDuty repository was officially deprecated in-favor of this one, with the final step being that this repository was detached from the
+original so it no longer appears to be a fork.
+
 ## License
-Cronner is released under the BSD 3-Clause License. See the `LICENSE` file for
-the full contents of the license.
+`cronner` is released under the BSD 3-Clause License. See the `LICENSE` file for the full contents of the license.
 
 ## Usage
 ### Help Output
