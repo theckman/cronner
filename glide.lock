@@ -1,10 +1,6 @@
 hash: 9ba8d4e7a90e3ed60721e3559e50f164e3ff6ebe607eea508ea37cb040bf5a04
 updated: 2017-01-23T21:45:47.139447219-08:00
 imports:
-- name: github.com/aristanetworks/goarista
-  version: b0e49c238c066506cefd63181b73b282ccd84708
-  subpackages:
-  - monotime
 - name: github.com/codeskyblue/go-uuid
   version: 952abbca900b023c1a80bc522ff4795db50d9d6c
 - name: github.com/jessevdk/go-flags

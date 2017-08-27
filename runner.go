@@ -2,6 +2,8 @@
 // Copyright 2016-2017 Tim Heckman
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
+//
+// +build go1.9
 
 package main
 
@@ -16,7 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/aristanetworks/goarista/monotime"
 	"github.com/theckman/go-flock"
 	"github.com/tideland/golib/logger"
 )
@@ -26,9 +27,9 @@ const intErrCode = 200
 // MaxBody is the maximum length of a event body
 const MaxBody = 4096
 
-// execCmd is a function to run a command and send
+// asyncExecCmd is a function to run a command and send
 // the error value back through a channel
-func execCmd(cmd *exec.Cmd, c chan<- error) {
+func asyncExecCmd(cmd *exec.Cmd, c chan<- error) {
 	c <- cmd.Run()
 	close(c)
 }
@@ -140,23 +141,24 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 		}
 	}
 
-	var startMono, stopMono uint64
-	ch := make(chan error)
+	var startTime, stopTime time.Time
 
 	// if we have a timer value, do all the extra logic to
 	// use the ticker to send out warning events
 	//
 	// otherwise, KISS
 	if hndlr.opts.WarnAfter > 0 {
+		ch := make(chan error)
+
 		// use time.Tick() instead of time.NewTicker() because
 		// we don't ever need to run Stop() on this ticker as cronner
 		// won't live much beyond the command returning
 		tickChan := time.Tick(time.Second * time.Duration(hndlr.opts.WarnAfter))
 
-		// get the value for now from the monotonic clock
-		startMono = monotime.Now()
+		// get the value for now with an embedded monotonic time source
+		startTime = time.Now()
 
-		go execCmd(hndlr.cmd, ch)
+		go asyncExecCmd(hndlr.cmd, ch)
 
 		// this is an open loop to wait for either the command to return
 		// or time to be sent over the ticker channel
@@ -168,15 +170,15 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 			// or wait for the ticker channel to return a time.Time value
 			select {
 			case m := <-ch:
-				// the comand returned; get a monotonic end time,
+				// the comand returned; get an end time,
 				// set the error vailue, and bail out of here!
-				stopMono = monotime.Now()
+				stopTime = time.Now()
 				err = m
 
 				break WaitLoop
 			case _, ok := <-tickChan:
 				if ok {
-					runSecs := monotime.Since(startMono).Seconds()
+					runSecs := time.Now().Sub(startTime) / time.Second
 					title := fmt.Sprintf("Cron %v still running after %d seconds on %v", hndlr.opts.Label, int64(runSecs), hndlr.hostname)
 					body := fmt.Sprintf("UUID: %v\nrunning for %v seconds", hndlr.uuid, int64(runSecs))
 					emitEvent(title, body, hndlr.opts.Label, "warning", hndlr)
@@ -184,17 +186,16 @@ func handleCommand(hndlr *cmdHandler) (int, []byte, float64, error) {
 			}
 		}
 	} else {
-		// get the value for now from the monotonic clock
-		startMono = monotime.Now()
+		// get the value for now with an embedded monotonic time source
+		startTime = time.Now()
 
-		go execCmd(hndlr.cmd, ch)
-		err = <-ch
+		err = hndlr.cmd.Run()
 
-		// get a monotonic end time
-		stopMono = monotime.Now()
+		// get an end time
+		stopTime = time.Now()
 	}
 
-	monotonicRtMs := float64(stopMono-startMono) / 1000000
+	monotonicRtMs := float64(stopTime.Sub(startTime)) / float64(time.Millisecond)
 
 	// calculate the return code of the command
 	// default to return code 0: success
@@ -394,3 +395,10 @@ func writeOutput(filename string, out []byte, sensitive bool) bool {
 
 	return true
 }
+
+// this constant is a hack to communicate that this software must be built
+// against go1.9+.
+//
+// cronner.go references this constant, and the build tags of this file will
+// make it appear undefined on anything older than go1.9.
+const cronnerRequiresAtleastGoVersion19 = uint8(0)

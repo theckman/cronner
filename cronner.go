@@ -18,7 +18,7 @@ import (
 )
 
 // Version is the program's version string
-const Version = "0.7.1"
+const Version = "1.0.0"
 
 type cmdHandler struct {
 	gs               *godspeed.Godspeed
@@ -137,3 +137,10 @@ func main() {
 
 	os.Exit(ret)
 }
+
+// cronner requires a monotonic time source for tracking how long a command
+// runs, so that means we need to build build against go1.9+.
+//
+// if cronnerRequiresAtleastGoVersion19 is undefined, it means the build tag on
+// runner.go was not satisfied (this is < go1.9).
+var _ = cronnerRequiresAtleastGoVersion19
