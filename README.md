@@ -17,6 +17,15 @@ may be undefined if you try to emit events or attach tags to metrics.
 
 For the finish DogStatsD event, the return code and output of the command are provided in the event body. If the output is too long, it is truncated. This output can optionally be saved to disk only if the job fails for later inspection.
 
+## Go 1.9+ Compatibility Notice
+Version 1.0.0+ of `cronner` requires that the source be built against Go 1.9+. Go 1.9 released the transparent support for a monotonic time source,
+within the `time.Time` type. This change means that using `time.Now()` to keep track of how long something took is safe when leap seconds occur.
+This was not the case before Go 1.9. If you attempt to build against an older Go runtime you should experience the following error:
+
+```
+./cronner.go:146: undefined: cronnerRequiresAtleastGoVersion19
+```
+
 ## Project History
 `cronner` was originally developed as an internal application at PagerDuty and was subsequently open-sourced. The original repository can be found here:
 [PagerDuty/cronner](https://github.com/PagerDuty/cronner). After that project became unmaintained, this fork was created to continue the development
