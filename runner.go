@@ -2,8 +2,6 @@
 // Copyright 2016-2017 Tim Heckman
 // Use of this source code is governed by the BSD 3-Clause
 // license that can be found in the LICENSE file.
-//
-// +build go1.9
 
 package main
 
@@ -21,6 +19,14 @@ import (
 	"github.com/theckman/go-flock"
 	"github.com/tideland/golib/logger"
 )
+
+// Functionality of this file requires a monotonic time source for tracking how
+// long a command runs, so that means we need to build build against go1.9+.
+// See: https://github.com/golang/go/issues/12914
+//
+// If cronnerRequiresAtleastGoVersion19 is undefined, it means the build tag on
+// go19.go was not satisfied (this is < go1.9).
+var _ = cronnerRequiresAtleastGoVersion19
 
 const intErrCode = 200
 
@@ -395,10 +401,3 @@ func writeOutput(filename string, out []byte, sensitive bool) bool {
 
 	return true
 }
-
-// this constant is a hack to communicate that this software must be built
-// against go1.9+.
-//
-// cronner.go references this constant, and the build tags of this file will
-// make it appear undefined on anything older than go1.9.
-const cronnerRequiresAtleastGoVersion19 = uint8(0)
