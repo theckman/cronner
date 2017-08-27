@@ -11,16 +11,12 @@ notifications:
     on_success: never
     on_failure: always
 env: 'PROJECT_NAME=cronner GOARCH=amd64 GOOS=linux PROJECT_BUILD_NAME="$PROJECT_NAME-$GOOS-$GOARCH-$TRAVIS_TAG"'
-install: go get -u github.com/golang/dep/cmd/dep
+install: true
 before_script:
   - rm -rf  ${GOPATH}/pkg/*
-script: go test -v -check.vv ./...
+script: make test
 before_deploy:
-- mkdir build
-- mkdir $PROJECT_BUILD_NAME
-- go build -o $PROJECT_BUILD_NAME/$PROJECT_NAME
-- tar -czf build/$PROJECT_BUILD_NAME.tar.gz $PROJECT_BUILD_NAME/
-- shasum -a 256 -- build/$PROJECT_BUILD_NAME.tar.gz | sed -e 's#build/##g' > build/$PROJECT_BUILD_NAME.tar.gz.sha256
+- make prep-deploy
 deploy:
   provider: releases
   skip_cleanup: true
