@@ -185,6 +185,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--event-group", "test_group",
 		"--group", "metric_group",
 		"--statsd-host", "test_host",
+		"--statsd-port", "8127",
 		"--lock",
 		"--label", "test",
 		"--log-path", "/var/log/testcronner",
@@ -212,6 +213,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Group, Equals, "metric_group")
 	c.Check(args.StatsdHost, Equals, "test_host")
+	c.Check(args.StatsdPort, Equals, int(8127))
 	c.Check(args.Lock, Equals, true)
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
@@ -239,6 +241,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 		"--event-group=test_group",
 		"--group=metric_group",
 		"--statsd-host=test_host",
+		"--statsd-port=8127",
 		"--label=test",
 		"--log-path=/var/log/testcronner",
 		"--log-level=info",
@@ -259,6 +262,7 @@ func (t *TestSuite) Test_binArgs_parse(c *C) {
 	c.Check(args.EventGroup, Equals, "test_group")
 	c.Check(args.Group, Equals, "metric_group")
 	c.Check(args.StatsdHost, Equals, "test_host")
+	c.Check(args.StatsdPort, Equals, int(8127))
 	c.Check(args.Label, Equals, "test")
 	c.Check(args.LogPath, Equals, "/var/log/testcronner")
 	c.Check(args.LogLevel, Equals, "info")

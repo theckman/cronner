@@ -97,11 +97,20 @@ func main() {
 
 	// build a Godspeed client
 	var gs *godspeed.Godspeed
-	if opts.StatsdHost == "" {
-		gs, err = godspeed.NewDefault()
-	} else {
-		gs, err = godspeed.New(opts.StatsdHost, godspeed.DefaultPort, false)
+
+	var StatsdHost string
+	StatsdHost = godspeed.DefaultHost
+	if opts.StatsdHost != "" {
+		StatsdHost = opts.StatsdHost
 	}
+
+	var StatsdPort int
+	StatsdPort = godspeed.DefaultPort
+	if opts.StatsdPort != 0 {
+		StatsdPort = opts.StatsdPort
+	}
+
+	gs, err = godspeed.New(StatsdHost, StatsdPort, false)
 
 	// make sure nothing went wrong with Godspeed
 	if err != nil {
